@@ -1,36 +1,34 @@
 # fireball_ase_calculator
 
 #### Description
-The interface of ASE for fireball
+The interface of ASE for FIREBALL.  
 
-#### Software Architecture
-Software architecture description
+[FIREBALL](https://sites.google.com/site/fireballofficialsite/) is a local-orbital ab-initio tight binding implementation of  molecular dynamics. The method allows for the simulation and calculation of very large supercells of thousands of atoms or very long MD  simulations with ease.
 
-#### Installation
-
-1.  xxxx
-2.  xxxx
-3.  xxxx
-
-#### Instructions
-
-1.  xxxx
-2.  xxxx
-3.  xxxx
-
-#### Contribution
-
-1.  Fork the repository
-2.  Create Feat_xxx branch
-3.  Commit your code
-4.  Create Pull Request
+[ASE](https://wiki.fysik.dtu.dk/ase/index.html) is a popular python package for atomic structure modeling. ASE provide interfaces with many QM and MM software. This package is the interface for FIREBALL. 
 
 
-#### Gitee Feature
 
-1.  You can use Readme\_XXX.md to support different languages, such as Readme\_en.md, Readme\_zh.md
-2.  Gitee blog [blog.gitee.com](https://blog.gitee.com)
-3.  Explore open source project [https://gitee.com/explore](https://gitee.com/explore)
-4.  The most valuable open source project [GVP](https://gitee.com/gvp)
-5.  The manual of Gitee [https://gitee.com/help](https://gitee.com/help)
-6.  The most popular members  [https://gitee.com/gitee-stars/](https://gitee.com/gitee-stars/)
+### FIREBALL calculation
+
+#### Excute command:
+
+* **fireball.x**: full version of fireball, calculate both energy and force.
+* **lightning.x**: minimum version, only calculate energy.
+
+#### Input files
+
+* `structure.inp`: main input file for calculation, include the atomic structure filename, io options.
+* `001.inp` and `001.kpoints`: atomic structure and kpoints files. If no `.kpoints` file provided, gamma-only calculation will be applied.
+* `Fdata` directory: the precomputed two center and three center interaction.
+* `Fdata.inp`: The input file when creating `Fdata`.
+
+#### structure.inp
+
+
+
+#### 001.inp
+
+
+
+#### 001.kpoints
