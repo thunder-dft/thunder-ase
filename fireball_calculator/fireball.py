@@ -20,6 +20,37 @@ from ase.calculators.calculator import Calculator, FileIOCalculator
 from ase.dft.kpoints import monkhorst_pack
 
 
+def get_kpts(atoms, size=None, offset=None, reduced=True):
+    """
+    Get reduced kpoints.
+    Reference:
+    * https://wiki.fysik.dtu.dk/ase/ase/dft/kpoints.html
+    * https://wiki.fysik.dtu.dk/ase/ase/spacegroup/spacegroup.html
+    :param reduced:
+    :param offset:
+    :param atoms:
+    :param size:
+    :return: np.array with shape (N, 4), coordinates and weights
+
+    TODO: Need check the algorithm from gpaw/kpt_refine.py
+    TODO: compare with vasp in several systems
+    """
+    # generate MP kpoints
+    kpoints = monkhorst_pack(size) + np.asarray(offset)
+    # get spacegroup from atoms  ase.spacegroup.get_spacegroup
+
+    # get basis ase.spacegroup.get_basis
+
+    # get equivalent sites sg.sg.equivalent_sites
+
+    # get kpt weights
+
+    # remove too close kpts?
+
+    result = []
+    return result
+
+
 class GenerateFireballInput:
 
     def __int__(self, atoms=None):
@@ -45,7 +76,7 @@ class GenerateFireballInput:
             'taurelx': 5.0,
             'efermi_T': 100.0,
             'dt': 0.25,  # fs
-            'iensembel': 0,
+            'iensemble': 0,
             'iconstraint_rcm': 1,
             'iconstraint_vcm': 1,
             'iconstraint_L': 0,
