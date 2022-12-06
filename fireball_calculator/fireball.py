@@ -7,20 +7,22 @@ The interface of ASE for FIREBALL.
 
 
 TODO:
-* 确认大小写是否敏感
-* Kpoints 采样，放到哪一部分？
+* input 大小敏感： 需要去掉敏感性
 
 """
 import os
+import subprocess
 from typing import Dict, Any
-
+from collections import defaultdict
 import ase
 import numpy as np
-from ase.calculators.calculator import Calculator, FileIOCalculator
+from ase.calculators.calculator import Calculator, FileIOCalculator, CalculatorError, CalculationFailed, all_changes
 from ase.dft.kpoints import monkhorst_pack
+from ase.geometry import get_distances
+import ase.spacegroup
 
 
-def get_kpts(atoms, size=None, offset=None, reduced=True):
+def get_kpts(atoms, size=None, offset=None, reduced=True, **kwargs):
     """
     Get reduced kpoints.
     Reference:
@@ -35,19 +37,34 @@ def get_kpts(atoms, size=None, offset=None, reduced=True):
     TODO: Need check the algorithm from gpaw/kpt_refine.py
     TODO: compare with vasp in several systems
     """
+    if 'symprec' in kwargs:
+        symprec = kwargs['symprec']
+    else:
+        symprec = 1e-05  # 注意这是笛卡尔空间的精度
     # generate MP kpoints
     kpoints = monkhorst_pack(size) + np.asarray(offset)
     # get spacegroup from atoms  ase.spacegroup.get_spacegroup
-
-    # get basis ase.spacegroup.get_basis
-
-    # get equivalent sites sg.sg.equivalent_sites
-
+    sg = ase.spacegroup.get_spacegroup(atoms, symprec=symprec)
+    # get equivalent sites sg.equivalent_sites
+    irreducible_dct = defaultdict(set)
+    reducible_set = set()
+    for idx, kpt in enumerate(kpoints):
+        if idx not in reducible_set:
+            sites, kinds = sg.equivalent_sites([kpt])
+            # 计算 kpoints 与 sites 之间的距离，注意这是倒易空间
+            dist = get_distances(kpoints, sites, cell=np.eye(3), pbc=True)
+            # 如果最小的距离 < symprec ，得到对应的 kpoints 的 index
+            kpts_green = set(np.argwhere(dist < symprec/atoms.cell.cellpar.min(), axis=0).tolist()[0])
+            if len(kpts_green) > 0:
+                irreducible_dct[idx] += kpts_green
+                reducible_set += kpts_green
+                reducible_set += {idx}
     # get kpt weights
-
-    # remove too close kpts?
-
     result = []
+    for idx, v in irreducible_dct.items():
+        kx, ky, kz = kpoints[idx]
+        result.append([kx, ky, kz, len(v)])
+
     return result
 
 
@@ -155,33 +172,30 @@ class GenerateFireballInput:
                     x, y, z = xyz
                     f.write("{:3d} {:11.6f} {:11.6f} {:11.6f}\n".format(num, x, y, z))
 
-    def write_kpts(self, kpts=None, offset=None):
+    def write_kpts(self, size=None, offset=None, reduced=True, **kwargs):
         if offset is None:
             offset = [0., 0., 0.]
-        if kpts is None:
-            kpts = [1, 1, 1]
-        offset = np.asarray(offset)
-        kpts = np.asarray(kpts, dtype=int)
+        if size is None:
+            size = [1, 1, 1]
+        offsets = np.asarray(offset)
+        sizes = np.asarray(size, dtype=int)
 
-        if len(kpts.shape) == 1:
-            kpts = [kpts for _ in self.atoms_lst]
+        if len(sizes.shape) == 1:
+            sizes = [sizes for _ in self.atoms_lst]
         else:
-            assert kpts.shape == (len(self.atoms_lst), 3)
+            assert sizes.shape == (len(self.atoms_lst), 3)
 
-        if len(offset.shape) == 1:
-            offset = [offset for _ in self.atoms_lst]
+        if len(offsets.shape) == 1:
+            offsets = [offsets for _ in self.atoms_lst]
         else:
-            assert offset.shape == (len(self.atoms_lst), 3)
+            assert offsets.shape == (len(self.atoms_lst), 3)
 
-        for ikpt, ioffset, sname in zip(kpts, offset, self.sname_lst):
-            kpoints = monkhorst_pack(ikpt) + ioffset
-            weight = 1.0
+        for isize, ioffset, sname in zip(sizes, offsets, self.sname_lst):
+            kpoints = get_kpts(self.atoms, size=isize, offset=ioffset, reduced=reduced, **kwargs)
             with open(sname+'.kpoints', 'w') as f:
                 f.write("{}\n".format(len(kpoints)))
                 for k in kpoints:
-                    f.write("{:8.6f} {:8.6f} {:8.6f} {:8.6f}\n".format(*k, weight))
-
-
+                    f.write("{:8.6f} {:8.6f} {:8.6f} {:8.6f}\n".format(*k))
 
 
 class Fireball(GenerateFireballInput, Calculator):
@@ -192,7 +206,7 @@ class Fireball(GenerateFireballInput, Calculator):
     env_commands = None
 
     implemented_properties = [
-        'energy', 'forces',
+        'energy',
     ]
 
     # Can be used later to set defaults
@@ -222,6 +236,47 @@ class Fireball(GenerateFireballInput, Calculator):
             else:
                 os.symlink(Fdata_inp_path, '.', target_is_directory=False)
 
-        GenerateFireballInput.__init__(self)
+        GenerateFireballInput.__init__(self, atoms=atoms)
         # initialize the ase.calculators.general calculator
         Calculator.__init__(self, atoms=atoms)
+
+    def calculate(self,
+                  atoms=None,
+                  properties=('energy', ),
+                  system_changes=tuple(all_changes)):
+        """Do a VASP calculation in the specified directory.
+
+        This will generate the necessary VASP input files, and then
+        execute VASP. After execution, the energy, forces. etc. are read
+        from the VASP output files.
+        """
+
+        if atoms is not None:
+            self.atoms = atoms.copy()
+
+        self.write_structure()  # TODO: update kwargs
+        self.write_atoms()  # TODO: update kwargs
+        self.write_kpts()  # TODO: update kwargs
+
+        errorcode = self._run(command=self.command,
+                              directory=self.directory)
+
+        if errorcode:
+            raise CalculationFailed(
+                '{} in {} returned an error: {:d}'.format(
+                    self.name, self.directory, errorcode))
+
+        # TODO: Read results from calculation
+        # self.update_atoms(atoms)
+        # self.read_results()
+
+    def _run(self, command=None, directory=None):
+        """Method to explicitly execute VASP"""
+        if command is None:
+            command = self.command
+        if directory is None:
+            directory = self.directory
+        errorcode = subprocess.call(command,
+                                    shell=True,
+                                    cwd=directory)
+        return errorcode
