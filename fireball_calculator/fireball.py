@@ -70,7 +70,7 @@ def get_kpts(atoms, size=None, offset=None, reduced=True, **kwargs):
 
 class GenerateFireballInput:
 
-    def __int__(self, atoms=None):
+    def __int__(self, atoms=None, **kwargs):
         if atoms is None or len(atoms) == 0:
             raise ValueError
         self.atoms = atoms
@@ -127,7 +127,7 @@ class GenerateFireballInput:
 
         self.all_params = self.options_params | self.output_params | self.xsfoptions_params
 
-    def write_structure(self):
+    def write_options(self):
 
         with open('structure.inp', 'w') as f:
             f.write("{}\n".format(len(self.atoms_lst)))
@@ -197,6 +197,11 @@ class GenerateFireballInput:
                 for k in kpoints:
                     f.write("{:8.6f} {:8.6f} {:8.6f} {:8.6f}\n".format(*k))
 
+    def write_input(self):
+        self.write_options()
+        self.write_atoms(pbc=self.atoms.pbc)
+        self.write_kpts()  # TODO: 确定参数
+
 
 class Fireball(GenerateFireballInput, Calculator):
     name = 'fireball'
@@ -215,7 +220,7 @@ class Fireball(GenerateFireballInput, Calculator):
     def __init__(self, atoms=None,
                  Fdata_path='Fdata',
                  command='fireball.x',
-                 check_version=False, **kwargs):
+                 **kwargs):
 
         self.__name__ = 'fireball'
 
@@ -229,16 +234,16 @@ class Fireball(GenerateFireballInput, Calculator):
             else:
                 os.symlink(Fdata_path, '.', target_is_directory=True)
         if not os.path.isfile("Fdata.inp"):
-            Fdata_inp_path = os.join(os.path.dirname(Fdata_path), "Fdata.inp")
-            if not os.path.isfile(os.join(os.path.dirname(Fdata_path), "Fdata.inp")):
+            Fdata_inp_path = os.path.join(os.path.dirname(Fdata_path), "Fdata.inp")
+            if not os.path.isfile(os.path.join(os.path.dirname(Fdata_path), "Fdata.inp")):
                 # check the existence of Fdata.inp
                 raise FileNotFoundError
             else:
                 os.symlink(Fdata_inp_path, '.', target_is_directory=False)
 
-        GenerateFireballInput.__init__(self, atoms=atoms)
+        GenerateFireballInput.__init__(self)
         # initialize the ase.calculators.general calculator
-        Calculator.__init__(self, atoms=atoms)
+        Calculator.__init__(self, atoms=atoms, **kwargs)
 
     def calculate(self,
                   atoms=None,
@@ -254,9 +259,7 @@ class Fireball(GenerateFireballInput, Calculator):
         if atoms is not None:
             self.atoms = atoms.copy()
 
-        self.write_structure()  # TODO: update kwargs
-        self.write_atoms()  # TODO: update kwargs
-        self.write_kpts()  # TODO: update kwargs
+        self.write_input()
 
         errorcode = self._run(command=self.command,
                               directory=self.directory)
