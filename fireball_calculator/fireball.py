@@ -68,6 +68,53 @@ def get_kpts(atoms, size=None, offset=None, reduced=True, **kwargs):
     return result
 
 
+options_params = {
+    'nstepi': {'type':(int,), 'name':'nstepi', 'default':1},
+    'nstepf': {'type':(int,), 'name':'nstepf', 'default':1},
+    'iquench': {'type':(int,), 'name':'iquench', 'default':0},
+    't_initial': {'type':(int,float), 'name':'T_initial', 'default':300.0},
+    't_final': {'type':(int,float), 'name':'T_final', 'default':0.0},
+    't_want': {'type':(int,float), 'name':'T_want', 'default':300.0},
+    'taurelx': {'type':(int,float), 'name':'taurelx', 'default':5.0},
+    'efermi_t': {'type':(int,float), 'name':'efermi_T', 'default':100.0},
+    'dt': {'type':(int,float), 'name':'dt', 'default':0.25},  # fs
+    'iensemble': {'type':(int,), 'name':'iensemble', 'default':0},
+    'iconstraint_rcm': {'type':(int,), 'name':'iconstraint_rcm', 'default':1},
+    'iconstraint_vcm': {'type':(int,), 'name':'iconstraint_vcm', 'default':1},
+    'iconstraint_l': {'type':(int,), 'name':'iconstraint_L', 'default':0},
+    'iconstraint_ke': {'type':(int,), 'name':'iconstraint_KE', 'default':1},
+    'ifix_neighbors': {'type':(int,), 'name':'ifix_neighbors', 'default':0},
+    'ifix_charges': {'type':(int,), 'name':'ifix_CHARGES', 'default':1},
+    'max_scf_iterations_set': {'type':(int,), 'name':'max_scf_iterations_set', 'default':50},
+    'scf_tolerance_set': {'type':(int,float), 'name':'scf_tolerance_set', 'default':0.00000001},
+    'beta_set': {'type':(int,float), 'name':'beta_set', 'default':0.08},
+    'ecut_set': {'type':(int,float), 'name':'Ecut_set', 'default':200.0},
+}
+
+
+output_params = {
+    'iwriteout_me_sandh': {'type':(int,), 'name':'iwriteout_ME_SandH', 'default':0},
+    'iwriteout_density': {'type':(int,), 'name':'iwriteout_density', 'default':0},
+    'iwriteout_cdcoeffs': {'type':(int,), 'name':'iwriteout_cdcoeffs', 'default':0},
+    'iwriteout_charges': {'type':(int,), 'name':'iwriteout_charges', 'default':0},
+    'iwriteout_energies': {'type':(int,), 'name':'iwriteout_energies', 'default':0},
+    'iwriteout_populations': {'type':(int,), 'name':'iwriteout_populations', 'default':0},
+    'iwriteout_forces': {'type':(int,), 'name':'iwriteout_forces', 'default':0},
+    'iwriteout_neighbors': {'type':(int,), 'name':'iwriteout_neighbors', 'default':0},
+    'iwriteout_dos': {'type':(int,), 'name':'iwriteout_dos', 'default':0},
+    'iwriteout_abs': {'type':(int,), 'name':'iwriteout_abs', 'default':0},
+    'iwriteout_ewf': {'type':(int,), 'name':'iwriteout_ewf', 'default':0},
+}
+
+
+xsfoptions_params = {
+    'rho_surface_min': {'type':(int,float), 'name':'rho_surface_min', 'default':0.0005},
+    'rho_surface_max': {'type':(int,float), 'name':'rho_surface_max', 'default':0.1},
+}
+
+fireball_params = options_params | output_params | xsfoptions_params
+
+
 class GenerateFireballInput:
 
     def __int__(self, atoms=None, **kwargs):
@@ -83,50 +130,27 @@ class GenerateFireballInput:
 
         self.sname_lst = ["{:03d}".format(idx+1) for idx in range(len(self.atoms_lst))]
 
-        self.options_params = {
-            'nstepi': 1,
-            'nstepf': 1,
-            'iquench': 0,
-            'T_initial': 300.0,
-            'T_final': 0.0,
-            'T_want': 300.0,
-            'taurelx': 5.0,
-            'efermi_T': 100.0,
-            'dt': 0.25,  # fs
-            'iensemble': 0,
-            'iconstraint_rcm': 1,
-            'iconstraint_vcm': 1,
-            'iconstraint_L': 0,
-            'iconstraint_KE': 1,
-            'ifix_neighbors': 0,
-            'ifix_CHARGES': 1,
-            'max_scf_iterations_set': 50,
-            'scf_tolerance_set': 0.00000001,
-            'beta_set': 0.08,
-            'Ecut_set': 200.0,
-        }
+        self.output_params = {}
+        self.options_params = {}
+        self.xsfoptions_params = {}
+        self.check_input(kwargs)
 
-        self.output_params = {
-            'iwriteout_ME_SandH': 0,
-            'iwriteout_density': 0,
-            'iwriteout_cdcoeffs': 0,
-            'iwriteout_charges': 0,
-            'iwriteout_energies': 0,
-            'iwriteout_populations': 0,
-            'iwriteout_forces': 0,
-            'iwriteout_neighbors': 0,
-            'iwriteout_dos': 0,
-            'iwriteout_abs': 0,
-            'iwriteout_ewf': 0,
-        }
-
-        self.xsfoptions_params = {
-            'rho_surface_min': 0.0005,
-            'rho_surface_max': 0.1,
-        }
-
-        self.all_params = self.options_params | self.output_params | self.xsfoptions_params
-
+    def check_input(self, kwargs):
+        for k,v in kwargs.items():
+            if type(v) not in fireball_params[k]['type']:
+                print("The type of {} should be {}".format(k, ' or '.join(fireball_params[k]['type'])))
+                raise TypeError
+            if k in output_params:
+                self.output_params[k] = v
+            elif k in options_params:
+                self.options_params[k] = v
+            elif k in xsfoptions_params:
+                self.xsfoptions_params[k] = v
+            else:
+                print("Check the keywords {}.".format(k))
+                raise KeyError
+        return
+            
     def write_options(self):
 
         with open('structure.inp', 'w') as f:
@@ -241,7 +265,7 @@ class Fireball(GenerateFireballInput, Calculator):
             else:
                 os.symlink(Fdata_inp_path, '.', target_is_directory=False)
 
-        GenerateFireballInput.__init__(self)
+        GenerateFireballInput.__init__(self, atoms=atoms, **kwargs)
         # initialize the ase.calculators.general calculator
         Calculator.__init__(self, atoms=atoms, **kwargs)
 
@@ -249,11 +273,11 @@ class Fireball(GenerateFireballInput, Calculator):
                   atoms=None,
                   properties=('energy', ),
                   system_changes=tuple(all_changes)):
-        """Do a VASP calculation in the specified directory.
+        """Do a fireball calculation in the specified directory.
 
-        This will generate the necessary VASP input files, and then
-        execute VASP. After execution, the energy, forces. etc. are read
-        from the VASP output files.
+        This will generate the necessary fireball input files, and then
+        execute fireball. After execution, the energy, forces. etc. are read
+        from the fireball output files.
         """
 
         if atoms is not None:
@@ -274,7 +298,7 @@ class Fireball(GenerateFireballInput, Calculator):
         # self.read_results()
 
     def _run(self, command=None, directory=None):
-        """Method to explicitly execute VASP"""
+        """Method to explicitly execute Fireball"""
         if command is None:
             command = self.command
         if directory is None:
