@@ -54,7 +54,7 @@ def get_kpts(atoms, size=None, offset=None, reduced=True, **kwargs):
             # 计算 kpoints 与 sites 之间的距离，注意这是倒易空间
             dist = get_distances(kpoints, sites, cell=np.eye(3), pbc=True)
             # 如果最小的距离 < symprec ，得到对应的 kpoints 的 index
-            kpts_green = set(np.argwhere(dist < symprec/atoms.cell.cellpar.min(), axis=0).tolist()[0])
+            kpts_green = set(np.argwhere(dist < symprec / atoms.cell.cellpar.min(), axis=0).tolist()[0])
             if len(kpts_green) > 0:
                 irreducible_dct[idx] += kpts_green
                 reducible_set += kpts_green
@@ -69,55 +69,52 @@ def get_kpts(atoms, size=None, offset=None, reduced=True, **kwargs):
 
 
 options_params = {
-    'nstepi': {'type':(int,), 'name':'nstepi', 'default':1},
-    'nstepf': {'type':(int,), 'name':'nstepf', 'default':1},
-    'iquench': {'type':(int,), 'name':'iquench', 'default':0},
-    't_initial': {'type':(int,float), 'name':'T_initial', 'default':300.0},
-    't_final': {'type':(int,float), 'name':'T_final', 'default':0.0},
-    't_want': {'type':(int,float), 'name':'T_want', 'default':300.0},
-    'taurelx': {'type':(int,float), 'name':'taurelx', 'default':5.0},
-    'efermi_t': {'type':(int,float), 'name':'efermi_T', 'default':100.0},
-    'dt': {'type':(int,float), 'name':'dt', 'default':0.25},  # fs
-    'iensemble': {'type':(int,), 'name':'iensemble', 'default':0},
-    'iconstraint_rcm': {'type':(int,), 'name':'iconstraint_rcm', 'default':1},
-    'iconstraint_vcm': {'type':(int,), 'name':'iconstraint_vcm', 'default':1},
-    'iconstraint_l': {'type':(int,), 'name':'iconstraint_L', 'default':0},
-    'iconstraint_ke': {'type':(int,), 'name':'iconstraint_KE', 'default':1},
-    'ifix_neighbors': {'type':(int,), 'name':'ifix_neighbors', 'default':0},
-    'ifix_charges': {'type':(int,), 'name':'ifix_CHARGES', 'default':1},
-    'max_scf_iterations_set': {'type':(int,), 'name':'max_scf_iterations_set', 'default':50},
-    'scf_tolerance_set': {'type':(int,float), 'name':'scf_tolerance_set', 'default':0.00000001},
-    'beta_set': {'type':(int,float), 'name':'beta_set', 'default':0.08},
-    'ecut_set': {'type':(int,float), 'name':'Ecut_set', 'default':200.0},
+    'nstepi': {'type': (int,), 'name': 'nstepi', 'default': 1},
+    'nstepf': {'type': (int,), 'name': 'nstepf', 'default': 1},
+    'iquench': {'type': (int,), 'name': 'iquench', 'default': 0},
+    't_initial': {'type': (int, float), 'name': 'T_initial', 'default': 300.0},
+    't_final': {'type': (int, float), 'name': 'T_final', 'default': 0.0},
+    't_want': {'type': (int, float), 'name': 'T_want', 'default': 300.0},
+    'taurelx': {'type': (int, float), 'name': 'taurelx', 'default': 5.0},
+    'efermi_t': {'type': (int, float), 'name': 'efermi_T', 'default': 100.0},
+    'dt': {'type': (int, float), 'name': 'dt', 'default': 0.25},  # fs
+    'iensemble': {'type': (int,), 'name': 'iensemble', 'default': 0},
+    'iconstraint_rcm': {'type': (int,), 'name': 'iconstraint_rcm', 'default': 1},
+    'iconstraint_vcm': {'type': (int,), 'name': 'iconstraint_vcm', 'default': 1},
+    'iconstraint_l': {'type': (int,), 'name': 'iconstraint_L', 'default': 0},
+    'iconstraint_ke': {'type': (int,), 'name': 'iconstraint_KE', 'default': 1},
+    'ifix_neighbors': {'type': (int,), 'name': 'ifix_neighbors', 'default': 0},
+    'ifix_charges': {'type': (int,), 'name': 'ifix_CHARGES', 'default': 1},
+    'max_scf_iterations_set': {'type': (int,), 'name': 'max_scf_iterations_set', 'default': 50},
+    'scf_tolerance_set': {'type': (int, float), 'name': 'scf_tolerance_set', 'default': 0.00000001},
+    'beta_set': {'type': (int, float), 'name': 'beta_set', 'default': 0.08},
+    'ecut_set': {'type': (int, float), 'name': 'Ecut_set', 'default': 200.0},
 }
-
 
 output_params = {
-    'iwriteout_me_sandh': {'type':(int,), 'name':'iwriteout_ME_SandH', 'default':0},
-    'iwriteout_density': {'type':(int,), 'name':'iwriteout_density', 'default':0},
-    'iwriteout_cdcoeffs': {'type':(int,), 'name':'iwriteout_cdcoeffs', 'default':0},
-    'iwriteout_charges': {'type':(int,), 'name':'iwriteout_charges', 'default':0},
-    'iwriteout_energies': {'type':(int,), 'name':'iwriteout_energies', 'default':0},
-    'iwriteout_populations': {'type':(int,), 'name':'iwriteout_populations', 'default':0},
-    'iwriteout_forces': {'type':(int,), 'name':'iwriteout_forces', 'default':0},
-    'iwriteout_neighbors': {'type':(int,), 'name':'iwriteout_neighbors', 'default':0},
-    'iwriteout_dos': {'type':(int,), 'name':'iwriteout_dos', 'default':0},
-    'iwriteout_abs': {'type':(int,), 'name':'iwriteout_abs', 'default':0},
-    'iwriteout_ewf': {'type':(int,), 'name':'iwriteout_ewf', 'default':0},
+    'iwriteout_me_sandh': {'type': (int,), 'name': 'iwriteout_ME_SandH', 'default': 0},
+    'iwriteout_density': {'type': (int,), 'name': 'iwriteout_density', 'default': 0},
+    'iwriteout_cdcoeffs': {'type': (int,), 'name': 'iwriteout_cdcoeffs', 'default': 0},
+    'iwriteout_charges': {'type': (int,), 'name': 'iwriteout_charges', 'default': 0},
+    'iwriteout_energies': {'type': (int,), 'name': 'iwriteout_energies', 'default': 0},
+    'iwriteout_populations': {'type': (int,), 'name': 'iwriteout_populations', 'default': 0},
+    'iwriteout_forces': {'type': (int,), 'name': 'iwriteout_forces', 'default': 0},
+    'iwriteout_neighbors': {'type': (int,), 'name': 'iwriteout_neighbors', 'default': 0},
+    'iwriteout_dos': {'type': (int,), 'name': 'iwriteout_dos', 'default': 0},
+    'iwriteout_abs': {'type': (int,), 'name': 'iwriteout_abs', 'default': 0},
+    'iwriteout_ewf': {'type': (int,), 'name': 'iwriteout_ewf', 'default': 0},
 }
 
-
 xsfoptions_params = {
-    'rho_surface_min': {'type':(int,float), 'name':'rho_surface_min', 'default':0.0005},
-    'rho_surface_max': {'type':(int,float), 'name':'rho_surface_max', 'default':0.1},
+    'rho_surface_min': {'type': (int, float), 'name': 'rho_surface_min', 'default': 0.0005},
+    'rho_surface_max': {'type': (int, float), 'name': 'rho_surface_max', 'default': 0.1},
 }
 
 fireball_params = options_params | output_params | xsfoptions_params
 
 
 class GenerateFireballInput:
-
-    def __int__(self, atoms=None, **kwargs):
+    def __init__(self, atoms, **kwargs):
         if atoms is None or len(atoms) == 0:
             raise ValueError
         self.atoms = atoms
@@ -128,7 +125,7 @@ class GenerateFireballInput:
         else:
             raise NotImplementedError
 
-        self.sname_lst = ["{:03d}".format(idx+1) for idx in range(len(self.atoms_lst))]
+        self.sname_lst = ["{:03d}".format(idx + 1) for idx in range(len(self.atoms_lst))]
 
         self.output_params = {}
         self.options_params = {}
@@ -136,7 +133,7 @@ class GenerateFireballInput:
         self.check_input(kwargs)
 
     def check_input(self, kwargs):
-        for k,v in kwargs.items():
+        for k, v in kwargs.items():
             if type(v) not in fireball_params[k]['type']:
                 print("The type of {} should be {}".format(k, ' or '.join(fireball_params[k]['type'])))
                 raise TypeError
@@ -150,7 +147,7 @@ class GenerateFireballInput:
                 print("Check the keywords {}.".format(k))
                 raise KeyError
         return
-            
+
     def write_options(self):
 
         with open('structure.inp', 'w') as f:
@@ -177,12 +174,12 @@ class GenerateFireballInput:
 
     def write_atoms(self, pbc=None):
 
-        for sname, iatoms in zip(self.sname_lst,self.atoms_lst):
-            with open(sname+".inp", 'w') as f:
+        for sname, iatoms in zip(self.sname_lst, self.atoms_lst):
+            with open(sname + ".inp", 'w') as f:
                 if pbc is None:
                     ipbc = 1 if np.any(iatoms.pbc) else 0
                 else:
-                    ipbc = 1 if pbc else 0
+                    ipbc = 1 if np.any(pbc) else 0
                 f.write("{:3d}{:12d}\n".format(len(iatoms), ipbc))
 
                 if ipbc == 1:
@@ -197,6 +194,9 @@ class GenerateFireballInput:
                     f.write("{:3d} {:11.6f} {:11.6f} {:11.6f}\n".format(num, x, y, z))
 
     def write_kpts(self, size=None, offset=None, reduced=True, **kwargs):
+        if np.all(self.atoms.pbc):
+            return
+
         if offset is None:
             offset = [0., 0., 0.]
         if size is None:
@@ -216,7 +216,7 @@ class GenerateFireballInput:
 
         for isize, ioffset, sname in zip(sizes, offsets, self.sname_lst):
             kpoints = get_kpts(self.atoms, size=isize, offset=ioffset, reduced=reduced, **kwargs)
-            with open(sname+'.kpoints', 'w') as f:
+            with open(sname + '.kpoints', 'w') as f:
                 f.write("{}\n".format(len(kpoints)))
                 for k in kpoints:
                     f.write("{:8.6f} {:8.6f} {:8.6f} {:8.6f}\n".format(*k))
@@ -271,7 +271,7 @@ class Fireball(GenerateFireballInput, Calculator):
 
     def calculate(self,
                   atoms=None,
-                  properties=('energy', ),
+                  properties=('energy',),
                   system_changes=tuple(all_changes)):
         """Do a fireball calculation in the specified directory.
 
