@@ -37,14 +37,30 @@ def get_kpts(atoms, size=None, offset=None, reduced=True, **kwargs):
     TODO: Need check the algorithm from gpaw/kpt_refine.py
     TODO: compare with vasp in several systems
     """
+    # generate MP kpoints
+    kpoints = monkhorst_pack(size) + np.asarray(offset)
+    if not reduced:
+        kpoints_weight = []
+        for k in kpoints:
+            kx, ky, kz = k
+            kpoints_weight.append([kx, ky, kz, 1.0])
+        return kpoints_weight
+
     if 'symprec' in kwargs:
         symprec = kwargs['symprec']
     else:
         symprec = 1e-05  # 注意这是笛卡尔空间的精度
-    # generate MP kpoints
-    kpoints = monkhorst_pack(size) + np.asarray(offset)
-    # get spacegroup from atoms  ase.spacegroup.get_spacegroup
-    sg = ase.spacegroup.get_spacegroup(atoms, symprec=symprec)
+    try:
+        # get spacegroup from atoms ase.spacegroup.get_spacegroup
+        sg = ase.spacegroup.get_spacegroup(atoms, symprec=symprec)
+    except RuntimeError:
+        print("Didn't find symmetry. No reducing is needed.")
+        kpoints_weight = []
+        for k in kpoints:
+            kx, ky, kz = k
+            kpoints_weight.append([kx, ky, kz, 1.0])
+        return kpoints_weight
+
     # get equivalent sites sg.equivalent_sites
     irreducible_dct = defaultdict(set)
     reducible_set = set()
@@ -118,19 +134,16 @@ class GenerateFireballInput:
         if atoms is None or len(atoms) == 0:
             raise ValueError
         self.atoms = atoms
-        if type(self.atoms) in (ase.Atoms,):
-            self.atoms_lst = [atoms]
-        elif type(self.atoms) in (tuple, list):
-            self.atoms_lst = atoms
-        else:
-            raise NotImplementedError
-
-        self.sname_lst = ["{:03d}".format(idx + 1) for idx in range(len(self.atoms_lst))]
+        self.sname = '001'  # TODO: name for input file
 
         self.output_params = {}
         self.options_params = {}
         self.xsfoptions_params = {}
         self.check_input(kwargs)
+
+        self.kpt_size = None
+        self.kpt_interval = None
+        self.kpt_offset = None
 
     def check_input(self, kwargs):
         for k, v in kwargs.items():
@@ -143,17 +156,19 @@ class GenerateFireballInput:
                 self.options_params[k] = v
             elif k in xsfoptions_params:
                 self.xsfoptions_params[k] = v
-            else:
-                print("Check the keywords {}.".format(k))
-                raise KeyError
+            elif k == 'kpt_size':
+                self.kpt_size = v
+            elif k == 'kpt_offset':
+                self.kpt_offset = v
+            elif k == 'kpt_interval':
+                self.kpt_interval = v
         return
 
     def write_options(self):
 
         with open('structure.inp', 'w') as f:
-            f.write("{}\n".format(len(self.atoms_lst)))
-            for sname in self.sname_lst:
-                f.write("{}.inp\n".format(sname))
+            f.write("1\n")
+            f.write("{}.inp\n".format(self.sname))
 
             f.write("! Write out options - leave this line as comment line or null\n")
 
@@ -174,52 +189,50 @@ class GenerateFireballInput:
 
     def write_atoms(self, pbc=None):
 
-        for sname, iatoms in zip(self.sname_lst, self.atoms_lst):
-            with open(sname + ".inp", 'w') as f:
-                if pbc is None:
-                    ipbc = 1 if np.any(iatoms.pbc) else 0
-                else:
-                    ipbc = 1 if np.any(pbc) else 0
-                f.write("{:3d}{:12d}\n".format(len(iatoms), ipbc))
+        with open(self.sname + ".inp", 'w') as f:
+            if pbc is None:
+                ipbc = 1 if np.any(self.atoms.pbc) else 0
+            else:
+                ipbc = 1 if np.any(pbc) else 0
+            f.write("{:3d}{:12d}\n".format(len(self.atoms), ipbc))
+            if ipbc == 1:
+                cell = self.atoms.cell[:]
+            else:
+                cell = np.eye(3) * 999.0
+            for row in cell:
+                f.write("{:11.6f} {:11.6f} {:11.6f}\n".format(*row))
+            for num, xyz in zip(self.atoms.numbers, self.atoms.positions):
+                x, y, z = xyz
+                f.write("{:3d} {:11.6f} {:11.6f} {:11.6f}\n".format(num, x, y, z))
 
-                if ipbc == 1:
-                    cell = iatoms.cell[:]
-                else:
-                    cell = np.eye(3) * 999.0
-                for row in cell:
-                    f.write("{:11.6f} {:11.6f} {:11.6f}\n".format(*row))
-
-                for num, xyz in zip(iatoms.numbers, iatoms.positions):
-                    x, y, z = xyz
-                    f.write("{:3d} {:11.6f} {:11.6f} {:11.6f}\n".format(num, x, y, z))
-
-    def write_kpts(self, size=None, offset=None, reduced=True, **kwargs):
-        if np.all(self.atoms.pbc):
+    def write_kpts(self, reduced=True, **kwargs):
+        """
+        :param size:
+        :param offset:
+        :param reduced:
+        :param kwargs:
+        :return:
+        """
+        if not np.all(self.atoms.pbc):
             return
 
-        if offset is None:
+        if self.kpt_offset is None:
             offset = [0., 0., 0.]
-        if size is None:
-            size = [1, 1, 1]
-        offsets = np.asarray(offset)
-        sizes = np.asarray(size, dtype=int)
-
-        if len(sizes.shape) == 1:
-            sizes = [sizes for _ in self.atoms_lst]
         else:
-            assert sizes.shape == (len(self.atoms_lst), 3)
-
-        if len(offsets.shape) == 1:
-            offsets = [offsets for _ in self.atoms_lst]
+            offset = self.kpt_offset
+        if self.kpt_size is None:
+            if self.kpt_interval is None:
+                size = [1, 1, 1]
+            else:
+                size = np.ceil(1 / self.atoms.cell.cellpar()[0:3] / self.kpt_interval)
         else:
-            assert offsets.shape == (len(self.atoms_lst), 3)
+            size = self.kpt_size
 
-        for isize, ioffset, sname in zip(sizes, offsets, self.sname_lst):
-            kpoints = get_kpts(self.atoms, size=isize, offset=ioffset, reduced=reduced, **kwargs)
-            with open(sname + '.kpoints', 'w') as f:
-                f.write("{}\n".format(len(kpoints)))
-                for k in kpoints:
-                    f.write("{:8.6f} {:8.6f} {:8.6f} {:8.6f}\n".format(*k))
+        kpoints = get_kpts(self.atoms, size=size, offset=offset, reduced=reduced, **kwargs)
+        with open(self.sname + '.kpoints', 'w') as f:
+            f.write("{}\n".format(len(kpoints)))
+            for k in kpoints:
+                f.write("{:8.6f} {:8.6f} {:8.6f} {:8.6f}\n".format(*k))
 
     def write_input(self):
         self.write_options()
