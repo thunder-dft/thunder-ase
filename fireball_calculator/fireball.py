@@ -20,9 +20,10 @@ from ase.calculators.calculator import Calculator, FileIOCalculator, CalculatorE
 from ase.dft.kpoints import monkhorst_pack
 from ase.geometry import get_distances
 import ase.spacegroup
+from ase.io import jsonio
 
 
-def get_kpts(atoms, size=None, offset=None, reduced=True, **kwargs):
+def get_kpts(atoms, size=None, offset=None, reduced=False, **kwargs):
     """
     Get reduced kpoints.
     Reference:
@@ -39,7 +40,7 @@ def get_kpts(atoms, size=None, offset=None, reduced=True, **kwargs):
     """
     # generate MP kpoints
     kpoints = monkhorst_pack(size) + np.asarray(offset)
-    if not reduced:
+    if not reduced or len(kpoints) <= 1:
         kpoints_weight = []
         for k in kpoints:
             kx, ky, kz = k
@@ -62,15 +63,24 @@ def get_kpts(atoms, size=None, offset=None, reduced=True, **kwargs):
         return kpoints_weight
 
     # get equivalent sites sg.equivalent_sites
+    # TODO: maybe use adj matrix to solve this problem
+    # 1. generate the equivalent_sites matrix for each kpt
+    # 2. calculate adj matrix for each site
+    # 3. count the number for adj sites
+    # TODO: not work below!!
+
+    raise NotImplementedError
+
+    """
     irreducible_dct = defaultdict(set)
     reducible_set = set()
     for idx, kpt in enumerate(kpoints):
         if idx not in reducible_set:
             sites, kinds = sg.equivalent_sites([kpt])
             # 计算 kpoints 与 sites 之间的距离，注意这是倒易空间
-            dist = get_distances(kpoints, sites, cell=np.eye(3), pbc=True)
+            dist_array, dist = get_distances(kpoints, sites, cell=np.eye(3), pbc=True)
             # 如果最小的距离 < symprec ，得到对应的 kpoints 的 index
-            kpts_green = set(np.argwhere(dist < symprec / atoms.cell.cellpar.min(), axis=0).tolist()[0])
+            kpts_green = set(np.argwhere(dist < symprec / atoms.cell.cellpar()[0:3].min(), axis=0).tolist()[0])
             if len(kpts_green) > 0:
                 irreducible_dct[idx] += kpts_green
                 reducible_set += kpts_green
@@ -82,7 +92,7 @@ def get_kpts(atoms, size=None, offset=None, reduced=True, **kwargs):
         result.append([kx, ky, kz, len(v)])
 
     return result
-
+    """
 
 options_params = {
     'nstepi': {'type': (int,), 'name': 'nstepi', 'default': 1},
@@ -126,7 +136,13 @@ xsfoptions_params = {
     'rho_surface_max': {'type': (int, float), 'name': 'rho_surface_max', 'default': 0.1},
 }
 
-fireball_params = options_params | output_params | xsfoptions_params
+calc_params = {
+    'kpt_size': {'type': (list, np.array), 'name': 'kpt_size', 'default': [1, 1, 1]},
+    'kpt_offset': {'type': (list, np.array), 'name': 'kpt_offset', 'default': [0., 0., 0.]},
+    'kpt_interval': {'type': (list, np.array, float, int), 'name': 'kpt_interval', 'default': None},
+}
+
+fireball_params = options_params | output_params | xsfoptions_params | calc_params
 
 
 class GenerateFireballInput:
@@ -139,14 +155,18 @@ class GenerateFireballInput:
         self.output_params = {}
         self.options_params = {}
         self.xsfoptions_params = {}
-        self.check_input(kwargs)
 
         self.kpt_size = None
         self.kpt_interval = None
         self.kpt_offset = None
 
+        self.check_input(kwargs)
+
     def check_input(self, kwargs):
         for k, v in kwargs.items():
+            if k not in fireball_params:
+                print("The option {} not supported!".format(k))
+                raise KeyError
             if type(v) not in fireball_params[k]['type']:
                 print("The type of {} should be {}".format(k, ' or '.join(fireball_params[k]['type'])))
                 raise TypeError
@@ -205,7 +225,7 @@ class GenerateFireballInput:
                 x, y, z = xyz
                 f.write("{:3d} {:11.6f} {:11.6f} {:11.6f}\n".format(num, x, y, z))
 
-    def write_kpts(self, reduced=True, **kwargs):
+    def write_kpts(self, reduced=False, **kwargs):
         """
         :param size:
         :param offset:
@@ -248,11 +268,15 @@ class Fireball(GenerateFireballInput, Calculator):
     env_commands = None
 
     implemented_properties = [
-        'energy',
+        'total_energy',   # TODO: change name to "energy", "forces"
+        'force',
+        # TODO: 'free_energy', 'dipole', 'fermi', 'stress', 'magmom', 'magmoms'
     ]
 
     # Can be used later to set defaults
     default_parameters: Dict[str, Any] = {}
+
+    # TODO: if charge exists, read from it.
 
     def __init__(self, atoms=None,
                  Fdata_path='Fdata',
@@ -306,9 +330,8 @@ class Fireball(GenerateFireballInput, Calculator):
                 '{} in {} returned an error: {:d}'.format(
                     self.name, self.directory, errorcode))
 
-        # TODO: Read results from calculation
         # self.update_atoms(atoms)
-        # self.read_results()
+        self.read_results()
 
     def _run(self, command=None, directory=None):
         """Method to explicitly execute Fireball"""
@@ -320,3 +343,7 @@ class Fireball(GenerateFireballInput, Calculator):
                                     shell=True,
                                     cwd=directory)
         return errorcode
+
+    def read_results(self):
+        output = "fireball.json"
+        self.results = jsonio.read_json(output)
