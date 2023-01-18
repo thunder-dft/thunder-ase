@@ -1,5 +1,4 @@
 from fireball_calculator.fireball import GenerateFireballInput, Fireball
-
 import ase
 import numpy as np
 
@@ -49,10 +48,13 @@ kwargs = {'kpt_size': [2, 2, 2],
           'rho_surface_min': 0.0005,
           'rho_surface_max': 0.01000000,
           }
-writer = GenerateFireballInput(atoms, **kwargs)
+#writer = GenerateFireballInput(atoms, **kwargs)
 
-writer.write_options()
-writer.write_atoms(pbc=atoms.pbc)
-writer.write_kpts()
+#writer.write_options()
+#writer.write_atoms(pbc=atoms.pbc)
+#writer.write_kpts()
 
+calc = Fireball(command='lightning.3.x', **kwargs)
+atoms.set_calculator(calc)
+atoms.get_potential_energy()
 print("Done")

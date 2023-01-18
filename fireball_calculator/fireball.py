@@ -146,9 +146,7 @@ def write_params(dct, f):
 
 
 class GenerateFireballInput:
-    def __init__(self, atoms, **kwargs):
-        if atoms is None or len(atoms) == 0:
-            raise ValueError
+    def __init__(self, atoms=None, **kwargs):
         self.atoms = atoms
         self.sname = '001'  # TODO: name for input file
 
@@ -264,8 +262,9 @@ class Fireball(GenerateFireballInput, Calculator):
     env_commands = None
 
     implemented_properties = [
-        'total_energy',   # TODO: change name to "energy", "forces"
-        'force',
+        'energy',   # TODO: change name to "energy", "forces"
+        'forces',
+        'fermi',
         # TODO: 'free_energy', 'dipole', 'fermi', 'stress', 'magmom', 'magmoms'
     ]
 
@@ -278,9 +277,9 @@ class Fireball(GenerateFireballInput, Calculator):
                  Fdata_path='Fdata',
                  command='fireball.x',
                  **kwargs):
-
         self.__name__ = 'fireball'
-
+        self._atoms = None
+        GenerateFireballInput.__init__(self, **kwargs)  # TODO: kwargs 使用set 函数进行管理，参考vasp
         self.Fdata_path = Fdata_path
         self.command = command
         # if Fdata not in current directory, make a symbolic link
@@ -298,9 +297,18 @@ class Fireball(GenerateFireballInput, Calculator):
             else:
                 os.symlink(Fdata_inp_path, '.', target_is_directory=False)
 
-        GenerateFireballInput.__init__(self, atoms=atoms, **kwargs)
-        # initialize the ase.calculators.general calculator
         Calculator.__init__(self, atoms=atoms, **kwargs)
+
+    @property
+    def atoms(self):
+        return self._atoms
+
+    @atoms.setter
+    def atoms(self, atoms):
+        if atoms is None:
+            self._atoms = None
+        else:
+            self._atoms = atoms.copy()
 
     def calculate(self,
                   atoms=None,
@@ -341,5 +349,6 @@ class Fireball(GenerateFireballInput, Calculator):
         return errorcode
 
     def read_results(self):
-        output = "fireball.json"
-        self.results = jsonio.read_json(output)
+        output = self.sname + ".log.json"
+        result = jsonio.read_json(output)
+        self.results = result['fireball'][-1]
