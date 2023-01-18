@@ -52,7 +52,7 @@ def get_kpts(atoms, size=None, offset=None, reduced=False, **kwargs):
     if 'symprec' in kwargs:
         symprec = kwargs['symprec']
     else:
-        symprec = 1e-05  # 注意这是笛卡尔空间的精度
+        symprec = 1e-03  # 注意这是笛卡尔空间的精度
     try:
         # get spacegroup from atoms ase.spacegroup.get_spacegroup
         sg = ase.spacegroup.get_spacegroup(atoms, symprec=symprec)
@@ -64,37 +64,29 @@ def get_kpts(atoms, size=None, offset=None, reduced=False, **kwargs):
             kpoints_weight.append([kx, ky, kz, 1.0/nkpt])
         return kpoints_weight
 
-    # get equivalent sites sg.equivalent_sites
-    # TODO: maybe use adj matrix to solve this problem
-    # 1. generate the equivalent_sites matrix for each kpt
-    # 2. calculate adj matrix for each site
-    # 3. count the number for adj sites
-    # TODO: not work below!!
+    kpts_extend = []  # all the symmetry points for each kpts
+    for kpt in kpoints:
+        sites, kinds = sg.equivalent_sites([kpt])
+        kpts_extend.append(sites)
 
-    raise NotImplementedError
+    irreducible_dct = dict()
+    kpoints_lst = kpoints.tolist()
+    while len(kpoints_lst) > 0:
+        kpt = kpoints_lst.pop(0)
+        kpt_extend = kpts_extend.pop(0)
+        key = tuple(kpt)
+        irreducible_dct[key] = [kpt]
+        # calc the distance between kpt_extend and kpts_extend
+        for idx, other_extend in enumerate(kpts_extend[:]):
+            dist_array, dist = get_distances(kpt_extend, other_extend, cell=atoms.cell, pbc=True)
+            if np.any(dist < symprec):
+                eq_kpt = kpoints_lst.pop(idx)
+                _ = kpts_extend.pop(idx)
+                irreducible_dct[key].append(eq_kpt)
 
-    """
-    irreducible_dct = defaultdict(set)
-    reducible_set = set()
-    for idx, kpt in enumerate(kpoints):
-        if idx not in reducible_set:
-            sites, kinds = sg.equivalent_sites([kpt])
-            # 计算 kpoints 与 sites 之间的距离，注意这是倒易空间
-            dist_array, dist = get_distances(kpoints, sites, cell=np.eye(3), pbc=True)
-            # 如果最小的距离 < symprec ，得到对应的 kpoints 的 index
-            kpts_green = set(np.argwhere(dist < symprec / atoms.cell.cellpar()[0:3].min(), axis=0).tolist()[0])
-            if len(kpts_green) > 0:
-                irreducible_dct[idx] += kpts_green
-                reducible_set += kpts_green
-                reducible_set += {idx}
-    # get kpt weights
-    result = []
-    for idx, v in irreducible_dct.items():
-        kx, ky, kz = kpoints[idx]
-        result.append([kx, ky, kz, len(v)])
+    kpoints_weight = [[k[0], k[1], k[2], len(v) / nkpt] for k, v in irreducible_dct.items()]
+    return kpoints_weight
 
-    return result
-    """
 
 options_params = {
     'nstepi': {'type': (int,), 'name': 'nstepi', 'default': 1},
@@ -231,10 +223,8 @@ class GenerateFireballInput:
                 x, y, z = xyz
                 f.write("{:3d} {:11.6f} {:11.6f} {:11.6f}\n".format(num, x, y, z))
 
-    def write_kpts(self, reduced=False, **kwargs):
+    def write_kpts(self, reduced=True, **kwargs):
         """
-        :param size:
-        :param offset:
         :param reduced:
         :param kwargs:
         :return:
