@@ -17,7 +17,7 @@ from collections import defaultdict
 import ase
 import numpy as np
 from ase.calculators.calculator import Calculator, FileIOCalculator, CalculatorError, CalculationFailed, all_changes
-from ase.dft.kpoints import monkhorst_pack
+from ase.dft.kpoints import monkhorst_pack, kpoint_convert
 from ase.geometry import get_distances
 import ase.spacegroup
 from ase.io import jsonio
@@ -40,11 +40,13 @@ def get_kpts(atoms, size=None, offset=None, reduced=False, **kwargs):
     """
     # generate MP kpoints
     kpoints = monkhorst_pack(size) + np.asarray(offset)
-    if not reduced or len(kpoints) <= 1:
+    kpoints = kpoint_convert(cell_cv=atoms.cell, skpts_kc=kpoints)  # convert from scaled and cartesian coordinates
+    nkpt = len(kpoints)
+    if not reduced or nkpt <= 1:
         kpoints_weight = []
         for k in kpoints:
             kx, ky, kz = k
-            kpoints_weight.append([kx, ky, kz, 1.0])
+            kpoints_weight.append([kx, ky, kz, 1.0/nkpt])
         return kpoints_weight
 
     if 'symprec' in kwargs:
@@ -59,7 +61,7 @@ def get_kpts(atoms, size=None, offset=None, reduced=False, **kwargs):
         kpoints_weight = []
         for k in kpoints:
             kx, ky, kz = k
-            kpoints_weight.append([kx, ky, kz, 1.0])
+            kpoints_weight.append([kx, ky, kz, 1.0/nkpt])
         return kpoints_weight
 
     # get equivalent sites sg.equivalent_sites
@@ -101,7 +103,7 @@ options_params = {
     't_initial': {'type': (int, float), 'name': 'T_initial', 'default': 300.0},
     't_final': {'type': (int, float), 'name': 'T_final', 'default': 0.0},
     't_want': {'type': (int, float), 'name': 'T_want', 'default': 300.0},
-    'taurelx': {'type': (int, float), 'name': 'taurelx', 'default': 5.0},
+    'taurelax': {'type': (int, float), 'name': 'taurelax', 'default': 5.0},
     'efermi_t': {'type': (int, float), 'name': 'efermi_T', 'default': 100.0},
     'dt': {'type': (int, float), 'name': 'dt', 'default': 0.25},  # fs
     'iensemble': {'type': (int,), 'name': 'iensemble', 'default': 0},
@@ -145,6 +147,12 @@ calc_params = {
 fireball_params = options_params | output_params | xsfoptions_params | calc_params
 
 
+def write_params(dct, f):
+    for k, v in dct.items():
+        kname = fireball_params[k]['name']
+        f.write("{} = {}\n".format(kname, v))
+
+
 class GenerateFireballInput:
     def __init__(self, atoms, **kwargs):
         if atoms is None or len(atoms) == 0:
@@ -163,7 +171,8 @@ class GenerateFireballInput:
         self.check_input(kwargs)
 
     def check_input(self, kwargs):
-        for k, v in kwargs.items():
+        for key, v in kwargs.items():
+            k = key.lower()
             if k not in fireball_params:
                 print("The option {} not supported!".format(k))
                 raise KeyError
@@ -186,36 +195,33 @@ class GenerateFireballInput:
 
     def write_options(self):
 
-        with open('structure.inp', 'w') as f:
+        with open('structures.inp', 'w') as f:
             f.write("1\n")
             f.write("{}.inp\n".format(self.sname))
 
             f.write("! Write out options - leave this line as comment line or null\n")
 
             f.write("&OUTPUT\n")
-            for k, v in self.output_params.items():
-                f.write("{} = {}\n".format(k, v))
+            write_params(self.output_params, f)
             f.write("&END\n")
 
             f.write("&OPTIONS\n")
-            for k, v in self.options_params.items():
-                f.write("{} = {}\n".format(k, v))
+            write_params(self.options_params, f)
             f.write("&END\n")
 
             f.write("&XSFOPTIONS\n")
-            for k, v in self.xsfoptions_params.items():
-                f.write("{} = {}\n".format(k, v))
+            write_params(self.xsfoptions_params, f)
             f.write("&END\n")
 
     def write_atoms(self, pbc=None):
 
         with open(self.sname + ".inp", 'w') as f:
             if pbc is None:
-                ipbc = 1 if np.any(self.atoms.pbc) else 0
+                ipbc = 0 if np.any(self.atoms.pbc) else 1
             else:
-                ipbc = 1 if np.any(pbc) else 0
+                ipbc = 0 if np.any(pbc) else 1
             f.write("{:3d}{:12d}\n".format(len(self.atoms), ipbc))
-            if ipbc == 1:
+            if ipbc == 0:
                 cell = self.atoms.cell[:]
             else:
                 cell = np.eye(3) * 999.0
@@ -249,7 +255,7 @@ class GenerateFireballInput:
             size = self.kpt_size
 
         kpoints = get_kpts(self.atoms, size=size, offset=offset, reduced=reduced, **kwargs)
-        with open(self.sname + '.kpoints', 'w') as f:
+        with open(self.sname + '.KPOINTS', 'w') as f:
             f.write("{}\n".format(len(kpoints)))
             for k in kpoints:
                 f.write("{:8.6f} {:8.6f} {:8.6f} {:8.6f}\n".format(*k))
