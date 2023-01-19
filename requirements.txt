@@ -1,0 +1,3 @@
+ase~=3.22.1
+numpy~=1.23.5
+setuptools~=65.5.0

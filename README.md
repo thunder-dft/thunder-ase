@@ -1,37 +1,24 @@
 # fireball_ase_calculator
 
-#### 介绍
-The interface of ASE for fireball
+### Description
+The interface of ASE for FIREBALL.  
 
-#### 软件架构
-软件架构说明
+[FIREBALL](https://sites.google.com/site/fireballofficialsite/) is a local-orbital ab-initio tight binding implementation of  molecular dynamics. The method allows for the simulation and calculation of very large supercells of thousands of atoms or very long MD  simulations with ease.
 
+[ASE](https://wiki.fysik.dtu.dk/ase/index.html) is a popular python package for atomic structure modeling. ASE provide interfaces with many QM and MM software. This package is the interface for FIREBALL. 
 
-#### 安装教程
+### Installation
 
-1.  xxxx
-2.  xxxx
-3.  xxxx
+`pip install git+https://gitee.com/pjren/fireball_ase_calculator.git`
 
-#### 使用说明
+#### Requirements
+* ase
 
-1.  xxxx
-2.  xxxx
-3.  xxxx
+## Roadmap
 
-#### 参与贡献
-
-1.  Fork 本仓库
-2.  新建 Feat_xxx 分支
-3.  提交代码
-4.  新建 Pull Request
-
-
-#### 特技
-
-1.  使用 Readme\_XXX.md 来支持不同的语言，例如 Readme\_en.md, Readme\_zh.md
-2.  Gitee 官方博客 [blog.gitee.com](https://blog.gitee.com)
-3.  你可以 [https://gitee.com/explore](https://gitee.com/explore) 这个地址来了解 Gitee 上的优秀开源项目
-4.  [GVP](https://gitee.com/gvp) 全称是 Gitee 最有价值开源项目，是综合评定出的优秀开源项目
-5.  Gitee 官方提供的使用手册 [https://gitee.com/help](https://gitee.com/help)
-6.  Gitee 封面人物是一档用来展示 Gitee 会员风采的栏目 [https://gitee.com/gitee-stars/](https://gitee.com/gitee-stars/)
+* v0.1: run basic fireball calculation and read basic result from it.
+  * v0.1.1: jupyter-notebook for tests
+* v0.2: band structure calculation.
+* v0.3: MD calculation.
+* v0.4: update Fdata management.
+* v0.5: interactive running.
