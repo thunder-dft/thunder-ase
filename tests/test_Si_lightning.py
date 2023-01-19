@@ -1,18 +1,17 @@
-from fireball_calculator.fireball import GenerateFireballInput, Fireball
+from fireball_calculator.fireball import Fireball
 import ase
+from ase.io.trajectory import Trajectory
 import numpy as np
+from ase.io import read
+from ase.units import kJ
+from ase.eos import EquationOfState
 
-atoms = ase.Atoms(numbers=[14, 14],
-                  cell=[
-                      [2.715000, 2.715000, 0.000000],
-                      [2.715000, 0.000000, 2.715000],
-                      [0.000000, 2.715000, 2.715000]],
-                  positions=[
-                      [0.0000000, 0.0000000, 0.0000000],
-                      [1.3575000, 1.3575000, 1.3575000]],
-                  pbc=True,
-                  )
-# Write input
+
+cell = np.array([[2.715000, 2.715000, 0.000000],
+                 [2.715000, 0.000000, 2.715000],
+                 [0.000000, 2.715000, 2.715000]])
+positions = np.array([[0.0000000, 0.0000000, 0.0000000],
+                      [1.3575000, 1.3575000, 1.3575000]])
 kwargs = {'kpt_size': [2, 2, 2],
           'iwriteout_ME_SandH': 0,
           'iwriteout_density': 0,
@@ -48,13 +47,28 @@ kwargs = {'kpt_size': [2, 2, 2],
           'rho_surface_min': 0.0005,
           'rho_surface_max': 0.01000000,
           }
-#writer = GenerateFireballInput(atoms, **kwargs)
 
-#writer.write_options()
-#writer.write_atoms(pbc=atoms.pbc)
-#writer.write_kpts()
+cell_factors = np.linspace(0.8, 1.2, 8)
+traj = Trajectory('Si.traj', 'w')
+for cf in cell_factors:
+    atoms = ase.Atoms(numbers=[14, 14],
+                      cell=cell,
+                      pbc=True,
+                      positions=positions,
+                      )
+    atoms.set_cell(cell=cell*cf, scale_atoms=True)
+    calc = Fireball(command='lightning.3.x', **kwargs)
+    atoms.set_calculator(calc)
+    e0 = atoms.get_potential_energy()
+    traj.write(atoms)
+    print("The energy for cell factor {:.3f} is {:.3f}".format(cf, e0))
 
-calc = Fireball(command='lightning.3.x', **kwargs)
-atoms.set_calculator(calc)
-atoms.get_potential_energy()
-print("Done")
+configs = read('Si.traj', index=':')
+volumes = [si.get_volume() for si in configs]
+energies = [si.get_potential_energy() for si in configs]
+eos = EquationOfState(volumes, energies)
+v0, e0, B = eos.fit()
+print(B / kJ * 1.0e24, 'GPa')
+eos.plot('Si-eos.png')
+
+print("Done!!")

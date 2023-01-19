@@ -1,22 +1,15 @@
 """
 The interface of ASE for FIREBALL.
-
 * create input files for FIREBALL
 * run fireball calculations
 * read output
-
-
-TODO:
-* input 大小敏感： 需要去掉敏感性
-
 """
 import os
 import subprocess
 from typing import Dict, Any
-from collections import defaultdict
 import ase
 import numpy as np
-from ase.calculators.calculator import Calculator, FileIOCalculator, CalculatorError, CalculationFailed, all_changes
+from ase.calculators.calculator import Calculator, CalculationFailed, all_changes
 from ase.dft.kpoints import monkhorst_pack, kpoint_convert
 from ase.geometry import get_distances
 import ase.spacegroup
@@ -52,7 +45,7 @@ def get_kpts(atoms, size=None, offset=None, reduced=False, **kwargs):
     if 'symprec' in kwargs:
         symprec = kwargs['symprec']
     else:
-        symprec = 1e-03  # 注意这是笛卡尔空间的精度
+        symprec = 1e-05  # 注意这是笛卡尔空间的精度
     try:
         # get spacegroup from atoms ase.spacegroup.get_spacegroup
         sg = ase.spacegroup.get_spacegroup(atoms, symprec=symprec)
@@ -77,12 +70,16 @@ def get_kpts(atoms, size=None, offset=None, reduced=False, **kwargs):
         key = tuple(kpt)
         irreducible_dct[key] = [kpt]
         # calc the distance between kpt_extend and kpts_extend
-        for idx, other_extend in enumerate(kpts_extend[:]):
-            dist_array, dist = get_distances(kpt_extend, other_extend, cell=atoms.cell, pbc=True)
-            if np.any(dist < symprec):
-                eq_kpt = kpoints_lst.pop(idx)
-                _ = kpts_extend.pop(idx)
-                irreducible_dct[key].append(eq_kpt)
+        if len(kpoints_lst) > 0:
+            reduced_idx = []
+            for idx, other_extend in enumerate(kpts_extend[:]):
+                dist_array, dist = get_distances(kpt_extend, other_extend, cell=atoms.cell, pbc=True)
+                if np.any(dist < symprec):
+                    reduced_idx.append(idx)
+            irreducible_dct[key] += [kpoints_lst[idx] for idx in reduced_idx]
+            # update kpoints_lst and kpts_extend by removing the reduced_idx
+            kpoints_lst = [v for idx, v in enumerate(kpoints_lst) if idx not in reduced_idx]
+            kpts_extend = [v for idx, v in enumerate(kpts_extend) if idx not in reduced_idx]
 
     kpoints_weight = [[k[0], k[1], k[2], len(v) / nkpt] for k, v in irreducible_dct.items()]
     return kpoints_weight
@@ -251,7 +248,7 @@ class GenerateFireballInput:
     def write_input(self):
         self.write_options()
         self.write_atoms(pbc=self.atoms.pbc)
-        self.write_kpts()  # TODO: 确定参数
+        self.write_kpts()
 
 
 class Fireball(GenerateFireballInput, Calculator):
@@ -262,16 +259,13 @@ class Fireball(GenerateFireballInput, Calculator):
     env_commands = None
 
     implemented_properties = [
-        'energy',   # TODO: change name to "energy", "forces"
+        'energy',
         'forces',
         'fermi',
-        # TODO: 'free_energy', 'dipole', 'fermi', 'stress', 'magmom', 'magmoms'
     ]
 
     # Can be used later to set defaults
     default_parameters: Dict[str, Any] = {}
-
-    # TODO: if charge exists, read from it.
 
     def __init__(self, atoms=None,
                  Fdata_path='Fdata',
