@@ -9,7 +9,7 @@ The interface of ASE for FIREBALL.
 
 ### Installation
 
-`pip install git+https://gitee.com/pjren/fireball_ase_calculator.git`
+`pip install git+https://github.com/thunder-dft/thunder-ase.git`
 
 #### Requirements
 * ase
