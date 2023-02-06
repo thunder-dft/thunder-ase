@@ -1,10 +1,10 @@
 from setuptools import setup
 
 setup(
-    name='fireball_ase_calculator',
+    name='thunder_ase',
     version='0.1',
-    packages=['fireball_calculator'],
-    url='https://gitee.com/pjren/fireball_ase_calculator',
+    packages=['thunder_ase'],
+    url='https://gitee.com/pjren/thunder-ase',
     license='',
     author='ren',
     author_email='openrpj@gmail.com',

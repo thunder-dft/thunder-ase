@@ -1,4 +1,4 @@
-# fireball_ase_calculator
+# Thunder ASE
 
 ### Description
 The interface of ASE for FIREBALL.  
