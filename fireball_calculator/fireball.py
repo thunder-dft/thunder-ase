@@ -277,19 +277,20 @@ class Fireball(GenerateFireballInput, Calculator):
         self.Fdata_path = Fdata_path
         self.command = command
         # if Fdata not in current directory, make a symbolic link
-        if not os.path.isdir('./Fdata'):
+        if not os.path.isdir('Fdata'):
             if not os.path.isdir(Fdata_path):
                 # check the existence of Fdata directory
                 raise FileNotFoundError
             else:
-                os.symlink(Fdata_path, '.', target_is_directory=True)
+                Fdata_dir_path = os.path.join(os.path.dirname(Fdata_path), "Fdata")
+                os.symlink(Fdata_dir_path, 'Fdata', target_is_directory=True)
         if not os.path.isfile("Fdata.inp"):
             Fdata_inp_path = os.path.join(os.path.dirname(Fdata_path), "Fdata.inp")
-            if not os.path.isfile(os.path.join(os.path.dirname(Fdata_path), "Fdata.inp")):
+            if not os.path.isfile(Fdata_inp_path):
                 # check the existence of Fdata.inp
                 raise FileNotFoundError
             else:
-                os.symlink(Fdata_inp_path, '.', target_is_directory=False)
+                os.symlink(Fdata_inp_path, "Fdata.inp", target_is_directory=False)
 
         Calculator.__init__(self, atoms=atoms, **kwargs)
 

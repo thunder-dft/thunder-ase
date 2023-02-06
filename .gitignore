@@ -140,3 +140,4 @@ cython_debug/
 .idea/
 Fdata/
 Fdata.inp
+data/
