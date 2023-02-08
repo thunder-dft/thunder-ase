@@ -18,7 +18,8 @@ The interface of ASE for FIREBALL.
 
 * v0.1: run basic fireball calculation and read basic result from it.
   * v0.1.1: jupyter-notebook for examples
-  * v0.1.2: read fireball input to construct calculator
+  * v0.1.2: multiple atoms for one calculator
+  * v0.1.3: read fireball input to construct calculator
 * v0.2: band structure calculation.
 * v0.3: MD calculation.
 * v0.4: update Fdata management.

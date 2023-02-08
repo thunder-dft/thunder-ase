@@ -144,7 +144,7 @@ def write_params(dct, f):
 
 class GenerateFireballInput:
     def __init__(self, atoms=None, **kwargs):
-        self.atoms = atoms
+        self._atoms = atoms.copy()
         self.sname = '001'  # TODO: name for input file
 
         self.output_params = {}
@@ -156,6 +156,14 @@ class GenerateFireballInput:
         self.kpt_offset = None
 
         self.check_input(kwargs)
+
+    @property
+    def atoms(self):
+        return self._atoms
+
+    @atoms.setter
+    def atoms(self, atoms):
+        self._atoms = atoms.copy()
 
     def check_input(self, kwargs):
         for key, v in kwargs.items():
@@ -347,3 +355,68 @@ class Fireball(GenerateFireballInput, Calculator):
         output = self.sname + ".log.json"
         result = jsonio.read_json(output)
         self.results = result['fireball'][-1]
+
+
+class MultiFireball:
+    name = 'multi_fireball'
+
+    def __init__(self, atoms_list=None, calc=None, sname_list=None):
+        if calc is not None:
+            self.calc = calc
+        elif atoms_list is not None:
+            if atoms_list[0].calc is not None:
+                self.calc = atoms_list[0].calc
+        else:
+            self.calc = None
+
+        _ = [atoms.set_calc(self.calc) for atoms in atoms_list if atoms.calc is None]
+
+        self.atoms_list = atoms_list
+
+        if sname_list is None:
+            self.sname_list = ["{:03d}".format(idx + 1) for idx in range(len(self.atoms_list))]
+
+    def write_options(self):
+        with open('structures.inp', 'w') as f:
+            f.write("{:d}\n".format(len(self.atoms_list)))
+            for sname in self.sname_list:
+                f.write("{}.inp\n".format(sname))
+
+            f.write("! Write out options - leave this line as comment line or null\n")
+
+            f.write("&OUTPUT\n")
+            write_params(self.calc.output_params, f)
+            f.write("&END\n")
+
+            f.write("&OPTIONS\n")
+            write_params(self.calc.options_params, f)
+            f.write("&END\n")
+
+            f.write("&XSFOPTIONS\n")
+            write_params(self.calc.xsfoptions_params, f)
+            f.write("&END\n")
+
+    def write_input(self):
+        self.write_options()
+        for atoms in self.atoms_list:
+            atoms.calc.write_atoms(pbc=atoms.pbc)
+            atoms.calc.write_kpts()
+
+    def calculate(self):
+        errorcode = self._run(command=self.calc.command,
+                              directory=self.calc.directory)
+        if errorcode:
+            raise CalculationFailed(
+                '{} in {} returned an error: {:d}'.format(
+                    self.name, self.calc.directory, errorcode))
+        for atoms in self.atoms_list:
+            atoms.calc.read_results()
+
+    def _run(self, command=None, directory=None):
+        """Method to explicitly execute Fireball"""
+        if command is None:
+            command = self.calc.command
+        if directory is None:
+            directory = self.calc.directory
+        errorcode = subprocess.call(command, shell=True, cwd=directory)
+        return errorcode
