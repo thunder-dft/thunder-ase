@@ -1,4 +1,4 @@
-from fireball_calculator.fireball import Fireball
+from thunder_ase.fireball import Fireball
 import ase
 from ase.io.trajectory import Trajectory
 import numpy as np
