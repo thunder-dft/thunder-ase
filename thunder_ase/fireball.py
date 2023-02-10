@@ -39,13 +39,13 @@ def get_kpts(atoms, size=None, offset=None, reduced=False, **kwargs):
         kpoints_weight = []
         for k in kpoints:
             kx, ky, kz = k
-            kpoints_weight.append([kx, ky, kz, 1.0/nkpt])
+            kpoints_weight.append([kx, ky, kz, 1.0 / nkpt])
         return kpoints_weight
 
     if 'symprec' in kwargs:
         symprec = kwargs['symprec']
     else:
-        symprec = 1e-05  # 注意这是笛卡尔空间的精度
+        symprec = 1e-05  # for Cartesian coordinate in real space
     try:
         # get spacegroup from atoms ase.spacegroup.get_spacegroup
         sg = ase.spacegroup.get_spacegroup(atoms, symprec=symprec)
@@ -54,7 +54,7 @@ def get_kpts(atoms, size=None, offset=None, reduced=False, **kwargs):
         kpoints_weight = []
         for k in kpoints:
             kx, ky, kz = k
-            kpoints_weight.append([kx, ky, kz, 1.0/nkpt])
+            kpoints_weight.append([kx, ky, kz, 1.0 / nkpt])
         return kpoints_weight
 
     kpts_extend = []  # all the symmetry points for each kpts
@@ -136,6 +136,20 @@ calc_params = {
 fireball_params = options_params | output_params | xsfoptions_params | calc_params
 
 
+def get_params_from_string(s):
+    k, v = s.split('=')
+    k = k.strip().lower()
+    v = v.strip()
+    if k not in fireball_params:
+        raise KeyError
+    vtype = fireball_params[k]['type']
+    if float in vtype:
+        v = float(v)
+    else:
+        v = vtype[0](v)
+    return k, v
+
+
 def write_params(dct, f):
     for k, v in dct.items():
         kname = fireball_params[k]['name']
@@ -145,8 +159,7 @@ def write_params(dct, f):
 class GenerateFireballInput:
     def __init__(self, atoms=None, **kwargs):
         self._atoms = atoms.copy()
-        self.sname = '001'  # TODO: name for input file
-
+        self.sname = '001'
         self.output_params = {}
         self.options_params = {}
         self.xsfoptions_params = {}
@@ -154,8 +167,9 @@ class GenerateFireballInput:
         self.kpt_size = None
         self.kpt_interval = None
         self.kpt_offset = None
+        self._kpoints = None
 
-        self.check_input(kwargs)
+        self.check_kwargs(kwargs)
 
     @property
     def atoms(self):
@@ -165,7 +179,44 @@ class GenerateFireballInput:
     def atoms(self, atoms):
         self._atoms = atoms.copy()
 
-    def check_input(self, kwargs):
+    def get_kpoints(self, reduced=True, **kwargs):
+        if self._kpoints is not None:
+            return self._kpoints
+
+        if not np.all(self.atoms.pbc):
+            return None
+
+        if self.kpt_offset is None:
+            offset = [0., 0., 0.]
+        else:
+            offset = self.kpt_offset
+        if self.kpt_size is None:
+            if self.kpt_interval is None:
+                size = [1, 1, 1]
+            else:
+                size = np.ceil(1 / self.atoms.cell.cellpar()[0:3] / self.kpt_interval)
+        else:
+            size = self.kpt_size
+
+        self._kpoints = get_kpts(self.atoms, size=size, offset=offset, reduced=reduced, **kwargs)
+        return self._kpoints
+
+    def set_kpoints(self, kpoints):
+        self._kpoints = kpoints
+
+    def write_Fdata_inp(self, atoms=None, Fdata_path=None):
+        if atoms is None:
+            atoms = self.atoms
+        if Fdata_path is None:
+            Fdata_path = 'Fdata'
+        species = sorted([i for i in set(atoms.numbers)])
+        with open('Fdata.inp', 'w') as f:
+            f.write("{}\n".format(len(species)))
+            for s in species:
+                f.write("{}\n".format(s))
+            f.write("{}".format(Fdata_path))
+
+    def check_kwargs(self, kwargs):
         for key, v in kwargs.items():
             k = key.lower()
             if k not in fireball_params:
@@ -189,7 +240,6 @@ class GenerateFireballInput:
         return
 
     def write_options(self):
-
         with open('structures.inp', 'w') as f:
             f.write("1\n")
             f.write("{}.inp\n".format(self.sname))
@@ -232,31 +282,73 @@ class GenerateFireballInput:
         :param kwargs:
         :return:
         """
-        if not np.all(self.atoms.pbc):
-            return
-
-        if self.kpt_offset is None:
-            offset = [0., 0., 0.]
-        else:
-            offset = self.kpt_offset
-        if self.kpt_size is None:
-            if self.kpt_interval is None:
-                size = [1, 1, 1]
-            else:
-                size = np.ceil(1 / self.atoms.cell.cellpar()[0:3] / self.kpt_interval)
-        else:
-            size = self.kpt_size
-
-        kpoints = get_kpts(self.atoms, size=size, offset=offset, reduced=reduced, **kwargs)
         with open(self.sname + '.KPOINTS', 'w') as f:
-            f.write("{}\n".format(len(kpoints)))
-            for k in kpoints:
+            f.write("{}\n".format(len(self.get_kpoints(reduced=reduced, **kwargs))))
+            for k in self.get_kpoints(reduced=reduced, **kwargs):
                 f.write("{:8.6f} {:8.6f} {:8.6f} {:8.6f}\n".format(*k))
 
-    def write_input(self):
+    def write_input(self, Fdata_path=None):
+        self.write_Fdata_inp(Fdata_path=Fdata_path)
         self.write_options()
         self.write_atoms(pbc=self.atoms.pbc)
         self.write_kpts()
+
+    def read_options(self, input_file='structures.inp', read_atoms=False):
+        # read structures.inp, get names for atoms and kpoints
+        with open(input_file, 'w') as f:
+            lines = f.readlines()
+
+        natoms_list = int(lines[0].strip())
+        sname_list = []
+        for iline in lines[1:natoms_list + 1]:
+            sname_list.append(iline.strip().strip('.inp'))
+
+        loption, loutput, lxsfoptions = False, False, False
+        for line in lines[natoms_list + 1:]:
+            content = line.strip()
+            if '!' in content:
+                content = content.split('!')[0]
+            if len(content) == 0:
+                continue
+
+            if '&OPTIONS' in content:
+                loption = True
+                continue
+            if '&OUTPUT' in content:
+                loutput = True
+                continue
+            if "&XSFOPTIONS" in content:
+                lxsfoptions = True
+                continue
+
+            if loption:
+                if '&END' in content:
+                    loption = False
+                    continue
+                k, v = get_params_from_string(content)
+                self.options_params[k] = v
+
+            elif loutput:
+                if '&END' in content:
+                    loutput = False
+                    continue
+                k, v = get_params_from_string(content)
+                self.output_params[k] = v
+            elif lxsfoptions:
+                if '&END' in content:
+                    lxsfoptions = False
+                    continue
+                k, v = get_params_from_string(content)
+                self.xsfoptions_params[k] = v
+
+        if read_atoms:
+            return sname_list
+
+    def read_kpts(self, input_file=None):
+        with open(input_file, 'r') as f:
+            lines = f.readlines()
+        kpts = [list(map(float, line.strip().split())) for line in lines if len(line.strip()) > 0]
+        self.set_kpoints(kpts)
 
 
 class Fireball(GenerateFireballInput, Calculator):
@@ -281,26 +373,13 @@ class Fireball(GenerateFireballInput, Calculator):
                  **kwargs):
         self.__name__ = 'fireball'
         self._atoms = None
-        GenerateFireballInput.__init__(self, **kwargs)  # TODO: kwargs 使用set 函数进行管理，参考vasp
+        GenerateFireballInput.__init__(self, **kwargs)  # TODO: set kwargs use set() function, see vasp calculator
+        Calculator.__init__(self, atoms=atoms, **kwargs)
+        if not os.path.isdir(Fdata_path):
+            # check the existence of Fdata directory
+            raise FileNotFoundError
         self.Fdata_path = Fdata_path
         self.command = command
-        # if Fdata not in current directory, make a symbolic link
-        if not os.path.isdir('Fdata'):
-            if not os.path.isdir(Fdata_path):
-                # check the existence of Fdata directory
-                raise FileNotFoundError
-            else:
-                Fdata_dir_path = os.path.join(os.path.dirname(Fdata_path), "Fdata")
-                os.symlink(Fdata_dir_path, 'Fdata', target_is_directory=True)
-        if not os.path.isfile("Fdata.inp"):
-            Fdata_inp_path = os.path.join(os.path.dirname(Fdata_path), "Fdata.inp")
-            if not os.path.isfile(Fdata_inp_path):
-                # check the existence of Fdata.inp
-                raise FileNotFoundError
-            else:
-                os.symlink(Fdata_inp_path, "Fdata.inp", target_is_directory=False)
-
-        Calculator.__init__(self, atoms=atoms, **kwargs)
 
     @property
     def atoms(self):
@@ -327,7 +406,7 @@ class Fireball(GenerateFireballInput, Calculator):
         if atoms is not None:
             self.atoms = atoms.copy()
 
-        self.write_input()
+        self.write_input(Fdata_path=self.Fdata_path)
 
         errorcode = self._run(command=self.command,
                               directory=self.directory)
@@ -356,6 +435,32 @@ class Fireball(GenerateFireballInput, Calculator):
         result = jsonio.read_json(output)
         self.results = result['fireball'][-1]
 
+    def read_options(self, input_file='structures.inp', read_atoms=False):
+        sname_list = super().read_options(input_file=input_file, read_atoms=read_atoms)
+        if not read_atoms or len(sname_list) == 0:
+            return None
+
+        if len(sname_list) == 1:
+            self.atoms = read_inp(input_file='{}.inp'.format(sname_list[0]))
+            kpts_file = '{}.KPOINTS'.format(sname_list[0])
+            if os.path.isfile(kpts_file):
+                self.read_kpts(kpts_file)
+            return None
+            # multiple atoms: if it contains multiple atoms, return MultiFireball instead of Fireball
+        print("Warning: This file contains multiple atoms, return MultiFireball instead of Fireball")
+        atoms_list = []
+        for sname in sname_list:
+            # read atoms
+            atoms = read_inp(input_file='{}.inp'.format(sname))
+            # read kpts
+            kpts_file = '{}.KPOINTS'.format(sname)
+            if os.path.isfile(kpts_file):
+                self.read_kpts(kpts_file)
+            atoms.set_calculator(self)
+            atoms_list.append(atoms)
+        multicalc = MultiFireball(atoms_list=atoms_list, sname_list=sname_list, calc=self)
+        return multicalc
+
 
 class MultiFireball:
     name = 'multi_fireball'
@@ -375,6 +480,16 @@ class MultiFireball:
 
         if sname_list is None:
             self.sname_list = ["{:03d}".format(idx + 1) for idx in range(len(self.atoms_list))]
+
+    def write_Fdata_inp(self, Fdata_path=None):
+        if Fdata_path is None:
+            Fdata_path = 'Fdata'
+        species = sorted(list(set([i for atoms in self.atoms_list for i in set(atoms.numbers)])))
+        with open('Fdata.inp', 'w') as f:
+            f.write("{}\n".format(len(species)))
+            for s in species:
+                f.write("{}\n".format(s))
+            f.write("{}".format(Fdata_path))
 
     def write_options(self):
         with open('structures.inp', 'w') as f:
@@ -397,6 +512,8 @@ class MultiFireball:
             f.write("&END\n")
 
     def write_input(self):
+        Fdata_path = self.calc.Fdata_path
+        self.write_Fdata_inp(Fdata_path=Fdata_path)
         self.write_options()
         for atoms in self.atoms_list:
             atoms.calc.write_atoms(pbc=atoms.pbc)
@@ -420,3 +537,27 @@ class MultiFireball:
             directory = self.calc.directory
         errorcode = subprocess.call(command, shell=True, cwd=directory)
         return errorcode
+
+
+def read_inp(input_file):
+    # read fireball input file, return ase.Atoms
+    with open(input_file, 'r') as f:
+        lines = f.readlines()
+
+    natoms, is_cluster = lines[0].split()
+    pbc = not bool(int(is_cluster))
+    cell = [[float(i) for i in lines[iline + 1].split()] for iline in range(3)]
+    numbers = []
+    positions = []
+    for line in lines[4:]:
+        content = line.strip().split()
+        if len(content) == 4:
+            num, x, y, z = content
+            numbers.append(int(num))
+            positions.append(list(map(float, [x, y, z])))
+
+    atoms = ase.Atoms(numbers=numbers,
+                      positions=positions,
+                      cell=cell,
+                      pbc=pbc)
+    return atoms
