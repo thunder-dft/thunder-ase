@@ -158,7 +158,10 @@ def write_params(dct, f):
 
 class GenerateFireballInput:
     def __init__(self, atoms=None, **kwargs):
-        self._atoms = atoms.copy()
+        if atoms is not None:
+            self._atoms = atoms.copy()
+        else:
+            self._atoms = None
         self.sname = '001'
         self.output_params = {}
         self.options_params = {}
@@ -210,11 +213,13 @@ class GenerateFireballInput:
         if Fdata_path is None:
             Fdata_path = 'Fdata'
         species = sorted([i for i in set(atoms.numbers)])
+
+        # TODO: if Fdata_path longer than 128, make a symbolic link.
         with open('Fdata.inp', 'w') as f:
             f.write("{}\n".format(len(species)))
             for s in species:
                 f.write("{}\n".format(s))
-            f.write("{}".format(Fdata_path))
+            f.write("'{}'".format(Fdata_path))
 
     def check_kwargs(self, kwargs):
         for key, v in kwargs.items():
@@ -258,7 +263,9 @@ class GenerateFireballInput:
             write_params(self.xsfoptions_params, f)
             f.write("&END\n")
 
-    def write_atoms(self, pbc=None):
+    def write_atoms(self, atoms=None, pbc=None):
+        if atoms is not None:
+            self.atoms = atoms.copy()
 
         with open(self.sname + ".inp", 'w') as f:
             if pbc is None:
@@ -287,15 +294,17 @@ class GenerateFireballInput:
             for k in self.get_kpoints(reduced=reduced, **kwargs):
                 f.write("{:8.6f} {:8.6f} {:8.6f} {:8.6f}\n".format(*k))
 
-    def write_input(self, Fdata_path=None):
-        self.write_Fdata_inp(Fdata_path=Fdata_path)
+    def write_input(self, atoms=None, Fdata_path=None):
+        if atoms is not None:
+            self.atoms = atoms.copy()
+        self.write_Fdata_inp(atoms=atoms, Fdata_path=Fdata_path)
         self.write_options()
         self.write_atoms(pbc=self.atoms.pbc)
         self.write_kpts()
 
     def read_options(self, input_file='structures.inp', read_atoms=False):
         # read structures.inp, get names for atoms and kpoints
-        with open(input_file, 'w') as f:
+        with open(input_file, 'r') as f:
             lines = f.readlines()
 
         natoms_list = int(lines[0].strip())
@@ -347,7 +356,10 @@ class GenerateFireballInput:
     def read_kpts(self, input_file=None):
         with open(input_file, 'r') as f:
             lines = f.readlines()
-        kpts = [list(map(float, line.strip().split())) for line in lines if len(line.strip()) > 0]
+        nkpts = int(lines[0].strip())
+        kpts = [list(map(float, line.strip().split())) for line in lines[1:] if len(line.strip()) > 0]
+        if nkpts != len(kpts):
+            raise ValueError("The kpoints number is not inconsistent.")
         self.set_kpoints(kpts)
 
 
@@ -489,7 +501,7 @@ class MultiFireball:
             f.write("{}\n".format(len(species)))
             for s in species:
                 f.write("{}\n".format(s))
-            f.write("{}".format(Fdata_path))
+            f.write("'{}'".format(Fdata_path))
 
     def write_options(self):
         with open('structures.inp', 'w') as f:
@@ -515,8 +527,9 @@ class MultiFireball:
         Fdata_path = self.calc.Fdata_path
         self.write_Fdata_inp(Fdata_path=Fdata_path)
         self.write_options()
-        for atoms in self.atoms_list:
-            atoms.calc.write_atoms(pbc=atoms.pbc)
+        for atoms, sname in zip(self.atoms_list, self.sname_list):
+            atoms.calc.sname = sname
+            atoms.calc.write_atoms(atoms=atoms, pbc=atoms.pbc)
             atoms.calc.write_kpts()
 
     def calculate(self):
