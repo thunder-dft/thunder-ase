@@ -14,6 +14,7 @@ from ase.dft.kpoints import monkhorst_pack, kpoint_convert
 from ase.geometry import get_distances
 import ase.spacegroup
 from ase.io import jsonio
+from ase.dft.kpoints import BandPath
 
 
 def get_kpts(atoms, size=None, offset=None, reduced=False, **kwargs):
@@ -131,6 +132,8 @@ calc_params = {
     'kpt_size': {'type': (list, np.array), 'name': 'kpt_size', 'default': [1, 1, 1]},
     'kpt_offset': {'type': (list, np.array), 'name': 'kpt_offset', 'default': [0., 0., 0.]},
     'kpt_interval': {'type': (list, np.array, float, int), 'name': 'kpt_interval', 'default': None},
+    'kpt_path': {'type': (BandPath, str, list, np.array), 'name': 'kpt_path', 'default': None},
+    'nkpt': {'type': (int,), 'name': 'nkpt', 'default': None},  # number of kpoints on path, use it if kpt_path is string
 }
 
 fireball_params = options_params | output_params | xsfoptions_params | calc_params
@@ -170,6 +173,8 @@ class GenerateFireballInput:
         self.kpt_size = None
         self.kpt_interval = None
         self.kpt_offset = None
+        self.kpt_path = None
+        self.nkpt = None
         self._kpoints = None
 
         self.check_kwargs(kwargs)
@@ -189,6 +194,23 @@ class GenerateFireballInput:
         if not np.all(self.atoms.pbc):
             return None
 
+        if self.kpt_path is not None:
+            if type(self.kpt_path) in (str,):
+                lat = self.atoms.cell.get_bravais_lattice()
+                path = lat.bandpath(self.kpt_path, npoints=self.nkpt)
+                self.kpt_path = path
+                kpts = path.kpts
+            elif type(self.kpt_path) in (np.array, list, tuple):
+                kpts = self.kpt_path
+            elif type(self.kpt_path) in (BandPath,):
+                kpts = self.kpt_path.kpts
+            else:
+                raise TypeError
+
+            self.nkpt = len(kpts)
+            self._kpoints = [[k[0], k[1], k[2], 1.0/self.nkpt]for k in kpts]
+            return self._kpoints
+
         if self.kpt_offset is None:
             offset = [0., 0., 0.]
         else:
@@ -202,6 +224,7 @@ class GenerateFireballInput:
             size = self.kpt_size
 
         self._kpoints = get_kpts(self.atoms, size=size, offset=offset, reduced=reduced, **kwargs)
+        self.nkpt = len(self._kpoints)
         return self._kpoints
 
     def set_kpoints(self, kpoints):
@@ -242,6 +265,10 @@ class GenerateFireballInput:
                 self.kpt_offset = v
             elif k == 'kpt_interval':
                 self.kpt_interval = v
+            elif k == 'kpt_path':
+                self.kpt_path = v
+            elif k == 'nkpt':
+                self.nkpt = v
         return
 
     def write_options(self):
@@ -385,6 +412,7 @@ class Fireball(GenerateFireballInput, Calculator):
                  **kwargs):
         self.__name__ = 'fireball'
         self._atoms = None
+        self._eigenvalues = None
         GenerateFireballInput.__init__(self, **kwargs)  # TODO: set kwargs use set() function, see vasp calculator
         Calculator.__init__(self, atoms=atoms, **kwargs)
         if not os.path.isdir(Fdata_path):
@@ -446,6 +474,74 @@ class Fireball(GenerateFireballInput, Calculator):
         output = self.sname + ".log.json"
         result = jsonio.read_json(output)
         self.results = result['fireball'][-1]
+
+    def get_fermi_level(self):
+        return self.get_property('fermi')
+
+    def get_ibz_k_points(self):
+        if self.kpt_path is None:
+            raise ValueError
+        kpts = np.asarray(self.get_kpoints())[:, :3]
+        return kpts
+
+    def get_eigenvalues(self, kpt=0, spin=0):
+        if self._eigenvalues is not None:
+            return self._eigenvalues[spin][kpt]
+
+        if not self.results:
+            self.calculate()
+        # Read eigen file
+        filename = self.sname + '.eigen'
+        if not os.path.isfile(filename):
+            raise FileExistsError
+
+        with open(filename, 'r') as f:
+            lines = f.readlines()
+
+        eigenvalues = []
+        eigen = []
+        kpts_count = [str(k+1) for k in range(self.nkpt)]
+        for line in lines:
+            content = [i.strip() for i in line.strip().split() if len(i.strip()) != 0]
+            if len(content) == 0:
+                pass
+            if len(kpts_count) != 0:
+                if content[0] == kpts_count[0]:
+                    if len(eigen) != 0:
+                        eigenvalues.append(eigen)
+                    eigen = []
+                    kpts_count.pop(0)
+                else:
+                    eigen += [float(i) for i in content]
+            else:
+                eigen += [float(i) for i in content]
+        eigenvalues.append(eigen)
+
+        self._eigenvalues = [eigenvalues]  # only one spin
+
+        return self._eigenvalues[spin][kpt]
+
+    def get_number_of_spins(self):
+        """
+        Current Fireball doesn't support spin polarization.
+        :return:
+        """
+        return 1
+
+    def band_structure(self, atoms=None):
+        """Create band-structure object for plotting."""
+        if atoms is not None:
+            self.atoms = atoms.copy()
+
+        from ase.spectrum.band_structure import get_band_structure
+        if self.kpt_path is None:
+            raise ValueError
+
+        if type(self.kpt_path) in (BandPath,):
+            path = self.kpt_path
+        else:
+            path = None
+        return get_band_structure(atoms=self.atoms, calc=self, path=path)
 
     def read_options(self, input_file='structures.inp', read_atoms=False):
         sname_list = super().read_options(input_file=input_file, read_atoms=read_atoms)
