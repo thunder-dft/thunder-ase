@@ -228,6 +228,9 @@ class GenerateFireballInput:
         self.nkpt = len(self._kpoints)
         return self._kpoints
 
+    def get_k_point_weights(self):
+        return np.asarray(self.get_kpoints())[:,-1]
+
     def set_kpoints(self, kpoints):
         self._kpoints = kpoints
 
