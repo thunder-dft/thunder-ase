@@ -202,11 +202,12 @@ class GenerateFireballInput:
                 kpts = path.kpts
             elif type(self.kpt_path) in (np.array, list, tuple):
                 kpts = self.kpt_path
-            elif type(self.kpt_path) in (BandPath,):
+            elif type(self.kpt_path) in (BandPath,):  # TODO: kpt_path must be BandPath
                 kpts = self.kpt_path.kpts
             else:
                 raise TypeError
 
+            kpts = kpoint_convert(cell_cv=self.atoms.cell, skpts_kc=kpts)  # convert to Cartesian coordinate
             self.nkpt = len(kpts)
             self._kpoints = [[k[0], k[1], k[2], 1.0/self.nkpt]for k in kpts]
             return self._kpoints
@@ -528,7 +529,7 @@ class Fireball(GenerateFireballInput, Calculator):
         """
         return 1
 
-    def band_structure(self, atoms=None):
+    def band_structure(self, atoms=None, reference=None):
         """Create band-structure object for plotting."""
         if atoms is not None:
             self.atoms = atoms.copy()
@@ -541,7 +542,7 @@ class Fireball(GenerateFireballInput, Calculator):
             path = self.kpt_path
         else:
             path = None
-        return get_band_structure(atoms=self.atoms, calc=self, path=path)
+        return get_band_structure(atoms=self.atoms, calc=self, path=path, reference=reference)
 
     def read_options(self, input_file='structures.inp', read_atoms=False):
         sname_list = super().read_options(input_file=input_file, read_atoms=read_atoms)
