@@ -1,3 +1,5 @@
+[![Upload Python Package](https://github.com/thunder-dft/thunder-ase/actions/workflows/python-publish.yml/badge.svg)](https://github.com/thunder-dft/thunder-ase/actions/workflows/python-publish.yml)
+
 # Thunder ASE
 
 ### Description
