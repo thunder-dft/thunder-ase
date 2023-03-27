@@ -13,7 +13,7 @@ setup(
     license='LGPL',
     author='renpj',
     author_email='openrpj@gmail.com',
-    description='ASE calculator interface for FIREBALL code.'
+    description='ASE calculator interface for FIREBALL code.',
     long_description=long_description,
-    long_description_content_type='text/markdown'
+    long_description_content_type='text/markdown',
 )
