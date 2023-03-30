@@ -421,6 +421,7 @@ class Fireball(GenerateFireballInput, Calculator):
         Calculator.__init__(self, atoms=atoms, **kwargs)
         if not os.path.isdir(Fdata_path):
             # check the existence of Fdata directory
+            print("Error: Can't find Fdata! Pls Check the setting!")
             raise FileNotFoundError
         self.Fdata_path = Fdata_path
         self.command = command
