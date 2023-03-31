@@ -11,9 +11,10 @@ The interface of ASE for FIREBALL.
 
 ### Installation
 
-`pip install git+https://github.com/thunder-dft/thunder-ase.git`
+`pip install thunder-ase`
 
 #### Requirements
+
 * ase
 
 ## Roadmap
