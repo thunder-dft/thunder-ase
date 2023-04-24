@@ -2,6 +2,7 @@ import numpy as np
 from scipy.optimize import minimize
 import matplotlib.pyplot as plt
 import random
+from .shell_primary_number import SHELL_PRIMARY_NUMS
 
 
 # read wf file
@@ -10,6 +11,47 @@ def read_wf(filename):
         lines = f.readlines()
     data = [list(map(float, line.strip().split())) for line in lines if len(line.strip().split()) == 2]
     return np.asarray(data)
+
+
+def read_info(filename='Fdata/info.dat'):
+    """
+    {'H': {
+        'number': 1,
+        'nshell': 1,
+        'shells': [0, 1],
+        'occupation': [1.0, 0.0],
+    }}
+    :param filename:
+    :return: dict
+    """
+    with open(filename, 'r') as f:
+        lines = f.readlines()
+
+    result_dict = {}
+
+    status = 0  # 0: start block, 1: in block
+    for il, line in enumerate(lines):
+        content = line.strip()
+        if len(content) == 0:
+            continue
+        if content == '=' * 70:
+            if status == 0:
+                status = 1
+            elif status == 1:
+                status = 0
+
+        if status == 1:
+            result_dict[lines[il + 2].strip().split()[0]] = {
+                'number': int(lines[il+1].strip()),
+                'nshell': int(lines[il + 5].strip().split()[0]),
+                'shells': [int(i) for i in lines[il + 6].strip().split()],
+                'occupation': [int(i) for i in lines[il + 7].strip().split()],
+            }
+            status = 0
+        else:
+            continue
+
+    return result_dict
 
 
 # gaussian function
@@ -94,6 +136,10 @@ if "__name__" == "__main__":
     parser = argparse.ArgumentParser(
         prog='FitBasisSet',
         description='Fit Fireball basis set to Gaussian-type basis set.',)
+
+    # 判断 Fdata/info.dat 是否存在，需要从里面读取 shell 数目
+
+
 
 # main
 # filename = '../tests/test_utils_fit_basis_set/001.wf-s0.dat'
