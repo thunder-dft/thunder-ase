@@ -1,3 +1,17 @@
+SHELL_NAME = {
+    0: 's',
+    1: 'p',
+    2: 'd',
+    3: 'f',
+}
+
+SHELL_NUM = {
+    's': 0,
+    'p': 1,
+    'd': 2,
+    'f': 3,
+}
+
 SHELL_PRIMARY_NUMS = {
     1: [1, ],  # H
     2: [1, ],  # He

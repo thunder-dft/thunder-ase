@@ -1,8 +1,11 @@
+import os.path
+
 import numpy as np
 from scipy.optimize import minimize
 import matplotlib.pyplot as plt
-import random
-from .shell_primary_number import SHELL_PRIMARY_NUMS
+from .shell_dict import SHELL_PRIMARY_NUMS, SHELL_NAME, SHELL_NUM
+from .ANO_DK3_GBS import ANO_DK3_GBS as GBS
+from ase.data import chemical_symbols
 
 
 # read wf file
@@ -73,7 +76,20 @@ def loss_function(x, *args):
     return loss
 
 
-def fit_wf(data, n=1, tol=None, Nzeta=None, bnds=None):
+def fit_wf(data, x0, n=1, bnds=None):
+    R, Y = np.asarray(data)
+    nz = int(len(x0) / 2)
+    if bnds is not None:
+        bnds = [bnds[0]] * nz + [bnds[1]] * nz
+    res = minimize(loss_function, x0, bounds=bnds, args=(n, R, Y))
+    Ae = res.x[0:nz]
+    ae = res.x[nz:]
+    Y_fit = gaussian(R, n, Ae, ae)
+    error = (np.linalg.norm(Y - Y_fit)) / len(Y)
+    return [Ae, ae, Y_fit, error]
+
+
+def fit_wf_from_random(data, n=1, tol=None, Nzeta=None, bnds=None):
     """
 
     :param data: shape = [N, 2]
@@ -83,7 +99,6 @@ def fit_wf(data, n=1, tol=None, Nzeta=None, bnds=None):
     :param bnds: boundary for fitting
     :return:
     """
-    R, Y = np.asarray(data)
     if Nzeta is None:
         if tol is None:
             tol = 1.0E-5
@@ -93,17 +108,12 @@ def fit_wf(data, n=1, tol=None, Nzeta=None, bnds=None):
         Nzeta0 = Nzeta
 
     success = False
+    Ae, ae, Y_fit, error = None, None, None, None
     for nz in range(Nzeta0, Nzeta+1):
         A0 = np.random.rand(nz)  # initial value for A
         a0 = np.random.rand(nz)  # initial value for alpha0
         x0 = np.concatenate([A0, a0])  # initial para vector
-        if bnds is not None:
-            bnds = [bnds[0]] * nz + [bnds[1]] * nz
-        res = minimize(loss_function, x0, bounds=bnds, args=(n, R, Y))
-        Ae = res.x[0:nz]
-        ae = res.x[nz:]
-        Y_fit = gaussian(R, n, Ae, ae)
-        error = (np.linalg.norm(Y-Y_fit))/len(Y)
+        Ae, ae, Y_fit, error = fit_wf(data, x0, n=n, bnds=bnds)
         if tol is not None:
             if error < tol:
                 success = True
@@ -118,7 +128,7 @@ def fit_wf(data, n=1, tol=None, Nzeta=None, bnds=None):
     return [Ae, ae, Y_fit]
 
 
-def plot_fitting(data, Ae, ae, output=None):
+def plot_fitting(data, n, Ae, ae, output=None):
     R, Y = np.asarray(data)
     plt.plot(R, Y, '-')
     plt.plot(R, gaussian(R, n, Ae, ae))
@@ -137,19 +147,30 @@ if "__name__" == "__main__":
         prog='FitBasisSet',
         description='Fit Fireball basis set to Gaussian-type basis set.',)
 
-    # 判断 Fdata/info.dat 是否存在，需要从里面读取 shell 数目
+    # run this after begin.x
+    input_name = '001.wf-s0.dat'  # element_number, shell, is_excited
+    name_list = input_name.split('.')
+    element_number = int(name_list[0])
+    shell_name, is_excited = name_list[1][-2:]
+    shell = SHELL_NUM[shell_name]
+    if not os.path.exists(input_name):
+        print("{} doesn't exist!".format(input_name))
+        raise FileNotFoundError
+    wf_data = read_wf(input_name)
 
+    # get initial guess
+    symbol = chemical_symbols[element_number]
+    primary_number = SHELL_PRIMARY_NUMS[element_number][shell]
+    if not is_excited:
+        ini_guess = np.concatenate(GBS[symbol][primary_number][shell_name])
+    else:
+        ini_guess = None  # ???
+    Ae, ae, Y_fit, error = fit_wf(wf_data, ini_guess, n=primary_number)
 
+    output_fig = "{:03d}.wf-{}{}.png".format(element_number, shell_name, is_excited)
+    plot_fitting(wf_data.T, primary_number, Ae, ae, output=None)
 
-# main
-# filename = '../tests/test_utils_fit_basis_set/001.wf-s0.dat'
-filename = '../tests/test_utils_fit_basis_set/007.wf-p1.dat'
-
-n = 1
-data = read_wf(filename)
-bnds = None
-
-Ae, ae, Y_fit = fit_wf(data=data.T, n=n, bnds=bnds, tol=1.0E-2)
-plot_fitting(data.T, Ae, ae, output=None)
-
-print("Done")
+    output = "{:03d}.wf-{}{}.gbs".format(element_number, shell_name, is_excited)
+    with open(output, 'w') as f:
+        for A, a in zip(Ae, ae):
+            f.write("{:.8g}  {:.8g}\n".format(A, a))
