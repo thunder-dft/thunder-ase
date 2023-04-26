@@ -4,7 +4,7 @@ import os.path
 import numpy as np
 from scipy.optimize import minimize
 import matplotlib.pyplot as plt
-from thunder_ase.utils.shell_dict import SHELL_PRIMARY_NUMS, SHELL_NAME, SHELL_NUM
+from thunder_ase.utils.shell_dict import SHELL_PRIMARY_NUMS, SHELL_NUM
 from thunder_ase.utils.ANO_DK3_GBS import ANO_DK3_GBS as GBS
 from ase.data import chemical_symbols
 
@@ -67,12 +67,12 @@ def gaussian(r, n=1, A=np.array([1]), a=np.array([1])):
 # loss function
 def loss_function(x, *args):
     len_x = int(len(x) / 2)
-    A = x[0:len_x]
-    a = x[len_x:]
+    alpha = x[0:len_x]
+    A = x[len_x:]
     n, r, Y = args
     if r.shape != Y.shape:
         raise ValueError('Shapes for args[1] and args[2] are not equal!')
-    loss = np.abs(Y - gaussian(r, n, A, a)).sum()
+    loss = np.abs(Y - gaussian(r, n, A, alpha)).sum()
     return loss
 
 
@@ -82,11 +82,11 @@ def fit_wf(data, x0, n=1, bnds=None):
     if bnds is not None:
         bnds = [bnds[0]] * nz + [bnds[1]] * nz
     res = minimize(loss_function, x0, bounds=bnds, args=(n, R, Y))
-    Ae = res.x[0:nz]
-    ae = res.x[nz:]
-    Y_fit = gaussian(R, n, Ae, ae)
+    alpha = res.x[0:nz]  # exponential parameters,
+    Ae = res.x[nz:]  # coefficients
+    Y_fit = gaussian(R, n, Ae, alpha)
     error = (np.linalg.norm(Y - Y_fit)) / len(Y)
-    return [Ae, ae, Y_fit, error]
+    return [Ae, alpha, Y_fit, error]
 
 
 def fit_wf_from_random(data, n=1, tol=None, Nzeta=None, bnds=None):
@@ -130,7 +130,7 @@ def fit_wf_from_random(data, n=1, tol=None, Nzeta=None, bnds=None):
 
 def plot_fitting(data, n, Ae, ae, output=None):
     R, Y = np.asarray(data)
-    plt.plot(R, Y, '-')
+    plt.plot(R, Y, '*')
     plt.plot(R, gaussian(R, n, Ae, ae))
     for Ai, ai in zip(Ae, ae):
         plt.plot(R, gaussian(R, n, [Ai], [ai]))
@@ -140,9 +140,9 @@ def plot_fitting(data, n, Ae, ae, output=None):
         plt.show()
 
 
-def get_initial_gbs_guess(element_num, pn, shell):
-    shell_name = SHELL_NAME[shell]
+def get_initial_gbs_guess(element_num, primary_num, shell_name):
     # loop GBS, find minimum element contain excited_pn and shell_name
+    pn = str(primary_num)
     for n_element in chemical_symbols[element_num:]:
         if n_element not in GBS:
             continue
@@ -150,7 +150,10 @@ def get_initial_gbs_guess(element_num, pn, shell):
             continue
         if shell_name in GBS[n_element][pn]:
             gauss = GBS[n_element][pn][shell_name]
-            return np.concatenate(gauss)
+            if n_element != chemical_symbols[element_num]:
+                print("Initial guess for {} {}{} is from {}!".format(
+                    chemical_symbols[element_num], pn, shell_name, n_element))
+            return np.concatenate(np.asarray(gauss).T)
 
     print("No initial guess for {} {}{}!".format(chemical_symbols[element_num], pn, shell_name))
     print("Maybe too large element number!")
@@ -163,7 +166,7 @@ def fit_gaussian(prog='fit_basis_set',
     parser = argparse.ArgumentParser(
         prog=prog,
         description=description, )
-    parser.add_argument('input_name', nargs='*', help='Fireball wave function file.')
+    parser.add_argument('input_name', nargs='+', help='Fireball wave function file.')
     parser.add_argument('-p', '--plot', action='store_true')
     args = parser.parse_args()
 
@@ -179,13 +182,11 @@ def fit_gaussian(prog='fit_basis_set',
 
         # get initial guess
         primary_number = SHELL_PRIMARY_NUMS[element_number][shell]
-        if is_excited:
+        if is_excited == '1':
             primary_number += 1
         ini_guess = get_initial_gbs_guess(element_number, primary_number, shell_name)
-
         # fitting by Gaussian
-        Ae, ae, Y_fit, error = fit_wf(wf_data, ini_guess, n=primary_number)
-
+        Ae, ae, Y_fit, error = fit_wf(wf_data.T, ini_guess, n=primary_number)
         if args.plot:
             output_fig = "{:03d}.wf-{}{}-fitting.png".format(element_number, shell_name, is_excited)
             plot_fitting(wf_data.T, primary_number, Ae, ae, output=output_fig)
@@ -193,4 +194,4 @@ def fit_gaussian(prog='fit_basis_set',
         output = "{:03d}.wf-{}{}.gbs".format(element_number, shell_name, is_excited)
         with open(output, 'w') as f:
             for A, a in zip(Ae, ae):
-                f.write("{:.8g}  {:.8g}\n".format(A, a))
+                f.write("{:.8E}  {:.8E}\n".format(A, a))
