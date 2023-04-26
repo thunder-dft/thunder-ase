@@ -100,3 +100,5 @@ SHELL_PRIMARY_NUMS = {
     85: [6, 6, 5, 4, ],  # At
     86: [6, 6, 5, 4, ],  # Rn
 }
+
+EXCITED_SHELL_PRIMARY_NUMS = {k: [i + 1 for i in v] for k, v in SHELL_PRIMARY_NUMS.items()}

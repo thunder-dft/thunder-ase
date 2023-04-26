@@ -17,6 +17,9 @@ classifiers = [
     "Operating System :: OS Independent",
 ]
 
+[project.scripts]
+fit-gaussians = "thunder_ase.utils:fit_gaussian"
+
 [tool.setuptools]
 packages=['thunder_ase']
 
