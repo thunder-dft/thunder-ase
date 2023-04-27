@@ -4,7 +4,7 @@ import os.path
 import numpy as np
 from scipy.optimize import minimize
 import matplotlib.pyplot as plt
-from thunder_ase.utils.shell_dict import SHELL_PRIMARY_NUMS, SHELL_NUM
+from thunder_ase.utils.shell_dict import SHELL_PRIMARY_NUMS, SHELL_NUM, SHELL_NAME
 from thunder_ase.utils.ANO_DK3_GBS import ANO_DK3_GBS as GBS
 from ase.data import chemical_symbols
 
@@ -194,4 +194,13 @@ def fit_gaussian(prog='fit_basis_set',
         output = "{:03d}.wf-{}{}.gbs".format(element_number, shell_name, is_excited)
         with open(output, 'w') as f:
             for A, a in zip(Ae, ae):
-                f.write("{:.8E}  {:.8E}\n".format(A, a))
+                f.write("{: .8E}  {: .8E}\n".format(A, a))
+
+
+def read_gaussian(element_number, shell, is_excited, Fdata_path=None):
+    shell_name = SHELL_NAME[shell]
+    filename = os.path.join(Fdata_path, "{:03d}.wf-{}{}.gbs".format(element_number, shell_name, is_excited))
+    with open(filename, 'r') as f:
+        lines = f.readlines()
+    array = np.asarray([[float(i) for i in line.split()] for line in lines])
+    return {'alpha': array[:, 0], 'coefficient': array[:, 1], 'degree': len(array)}

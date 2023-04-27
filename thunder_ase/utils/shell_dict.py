@@ -102,3 +102,11 @@ SHELL_PRIMARY_NUMS = {
 }
 
 EXCITED_SHELL_PRIMARY_NUMS = {k: [i + 1 for i in v] for k, v in SHELL_PRIMARY_NUMS.items()}
+
+
+SHELL_PRIMITIVE = {
+    0: 1,  # s
+    1: 3,  # p
+    2: 6,  # d
+    3: 10,  # f
+}

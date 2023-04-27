@@ -15,6 +15,9 @@ from ase.geometry import get_distances
 import ase.spacegroup
 from ase.io import jsonio
 from ase.dft.kpoints import BandPath
+from thunder_ase.utils.mwfn import MWFN_FORMAT, MWFN_DEFAULT, MWFN_TEMPLATE, format_data
+from thunder_ase.utils.basis_set import read_info, read_gaussian
+from thunder_ase.utils.shell_dict import SHELL_NUM, SHELL_NAME, SHELL_PRIMARY_NUMS, SHELL_PRIMITIVE
 
 
 def get_kpts(atoms, size=None, offset=None, reduced=False, **kwargs):
@@ -133,7 +136,8 @@ calc_params = {
     'kpt_offset': {'type': (list, np.array), 'name': 'kpt_offset', 'default': [0., 0., 0.]},
     'kpt_interval': {'type': (list, np.array, float, int), 'name': 'kpt_interval', 'default': None},
     'kpt_path': {'type': (BandPath, str, list, np.array), 'name': 'kpt_path', 'default': None},
-    'nkpt': {'type': (int,), 'name': 'nkpt', 'default': None},  # number of kpoints on path, use it if kpt_path is string
+    'nkpt': {'type': (int,), 'name': 'nkpt', 'default': None},
+    # number of kpoints on path, use it if kpt_path is string
 }
 
 fireball_params = options_params | output_params | xsfoptions_params | calc_params
@@ -209,7 +213,7 @@ class GenerateFireballInput:
 
             kpts = kpoint_convert(cell_cv=self.atoms.cell, skpts_kc=kpts)  # convert to Cartesian coordinate
             self.nkpt = len(kpts)
-            self._kpoints = [[k[0], k[1], k[2], 1.0/self.nkpt]for k in kpts]
+            self._kpoints = [[k[0], k[1], k[2], 1.0 / self.nkpt] for k in kpts]
             return self._kpoints
 
         if self.kpt_offset is None:
@@ -229,7 +233,7 @@ class GenerateFireballInput:
         return self._kpoints
 
     def get_k_point_weights(self):
-        return np.asarray(self.get_kpoints())[:,-1]
+        return np.asarray(self.get_kpoints())[:, -1]
 
     def set_kpoints(self, kpoints):
         self._kpoints = kpoints
@@ -417,6 +421,7 @@ class Fireball(GenerateFireballInput, Calculator):
         self.__name__ = 'fireball'
         self._atoms = None
         self._eigenvalues = None
+        self._shell_info = None
         GenerateFireballInput.__init__(self, **kwargs)  # TODO: set kwargs use set() function, see vasp calculator
         Calculator.__init__(self, atoms=atoms, **kwargs)
         if not os.path.isdir(Fdata_path):
@@ -505,7 +510,7 @@ class Fireball(GenerateFireballInput, Calculator):
 
         eigenvalues = []
         eigen = []
-        kpts_count = [str(k+1) for k in range(self.nkpt)]
+        kpts_count = [str(k + 1) for k in range(self.nkpt)]
         for line in lines:
             content = [i.strip() for i in line.strip().split() if len(i.strip()) != 0]
             if len(content) == 0:
@@ -573,6 +578,87 @@ class Fireball(GenerateFireballInput, Calculator):
             atoms_list.append(atoms)
         multicalc = MultiFireball(atoms_list=atoms_list, sname_list=sname_list, calc=self)
         return multicalc
+
+    @property
+    def shell_info(self):
+        if self._shell_info is None:
+            # read Fdata/info.dat
+            self._shell_info = read_info(os.path.join(self.Fdata_path, 'info.dat'))
+            for symbol, value in self._shell_info.items():
+                ishell = value['shells']
+                len_ground = SHELL_PRIMARY_NUMS[value['number']]
+                excited_label = [0] * len(len_ground) + [1] * (ishell - len_ground)
+                self._shell_info[symbol]['excited'] = excited_label
+        return self._shell_info
+
+    def get_valence_charge(self, i):
+        isymbol = self.atoms.symbols[i]
+        shell_info = self.shell_info[isymbol]
+        return sum(shell_info['occupation'])
+
+    def write_mwfn(self, ):
+        mwfn_dict = MWFN_DEFAULT.copy()
+        # atom information
+        mwfn_dict['ncenter'] = MWFN_FORMAT['ncenter'].format(len(self.atoms))
+        atoms_coord = [MWFN_FORMAT['atoms_coord'].format(idx,
+                                                         iatom.symbol,
+                                                         iatom.number,
+                                                         self.get_valence_charge(idx),
+                                                         *iatom.position)
+                       for idx, iatom in enumerate(self.atoms)]
+        mwfn_dict['atoms_coord'] = '\n'.join(atoms_coord)
+        if self.atoms.pbc:
+            mwfn_dict['ndim'] = MWFN_FORMAT['ndim'].format(3)
+            mwfn_dict['cellv1'] = (MWFN_FORMAT['cellv1'] * 3).format(*self.atoms.cell[0])
+            mwfn_dict['cellv2'] = (MWFN_FORMAT['cellv2'] * 3).format(*self.atoms.cell[1])
+            mwfn_dict['cellv3'] = (MWFN_FORMAT['cellv3'] * 3).format(*self.atoms.cell[2])
+
+        # electron for alpha and beta
+        tot_elec = sum([self.get_valence_charge(i) for i in range(len(self.atoms))])
+        naelec = 0.5 * tot_elec
+        nbelec = 0.5 * tot_elec
+        mwfn_dict['naelec'] = MWFN_FORMAT['naelec'].format(naelec)
+        mwfn_dict['nbelec'] = MWFN_FORMAT['nbelec'].format(nbelec)
+        # total energy
+        mwfn_dict['e_tot'] = MWFN_FORMAT['e_tot'].format(self.get_potential_energy())
+        # Basis set info
+        shell_types = []
+        shell_centers = []
+        shell_contraction_degress = []
+        primitive_exponents = []
+        contraction_coefficients = []
+        for idx, symbol in enumerate(self.atoms.symbols):
+            ishells = self.shell_info[symbol]['shells']
+            shell_centers += [idx] * len(ishells)
+            shell_types += ishells
+            excited_label = self.shell_info[symbol]['excited']
+            for shell, is_excited in zip(ishells, excited_label):
+                gbs = read_gaussian(self.shell_info[symbol]['number'], shell, is_excited, Fdata_path=self.Fdata_path)
+                shell_contraction_degress.append(gbs['degree'])
+                primitive_exponents += gbs['alpha'].tolist()
+                contraction_coefficients += gbs['coefficient'].tolist()
+        nbasis = sum([shell*2+1 for shell in shell_types])
+        nshell = len(shell_types)
+        nprimshell = len(primitive_exponents)
+        nprims = sum([SHELL_PRIMITIVE[st]*degree
+                      for st, degree in zip(shell_types, shell_contraction_degress)])
+        shell_types = [((i < 2) * 2 - 1) * i for i in shell_types]  # if i >= 2, use negative value
+
+        mwfn_dict['nbasis'] = MWFN_FORMAT['nbasis'].format(nbasis)
+        mwfn_dict['nindbasis'] = MWFN_FORMAT['nindbasis'].format(nbasis)
+        mwfn_dict['nprims'] = MWFN_FORMAT['nprims'].format(nprims)
+        mwfn_dict['nshell'] = MWFN_FORMAT['nshell'].format(nshell)
+        mwfn_dict['nprimshell'] = MWFN_FORMAT['nprimshell'].format(nprimshell)
+
+        mwfn_dict['shell_types'] = format_data('shell_types', shell_types)
+        mwfn_dict['shell_centers'] = format_data('shell_centers', shell_centers)
+        mwfn_dict['shell_contraction_degress'] = format_data('shell_contraction_degress', shell_contraction_degress)
+        mwfn_dict['primitive_exponents'] = format_data('primitive_exponents', primitive_exponents)
+        mwfn_dict['contraction_coefficients'] = format_data('contraction_coefficients', contraction_coefficients)
+        # write out
+        content = MWFN_TEMPLATE.substitute(mwfn_dict)
+        with open(self.sname + '.mwfn', 'w') as f:
+            f.write(content)
 
 
 class MultiFireball:
