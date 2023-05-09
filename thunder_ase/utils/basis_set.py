@@ -32,7 +32,7 @@ def read_info(filename='Fdata/info.dat'):
 
     result_dict = {}
 
-    status = 0  # 0: start block, 1: in block
+    status = 0  # 0: start block, 1: in block, 2: need to end block
     for il, line in enumerate(lines):
         content = line.strip()
         if len(content) == 0:
@@ -40,17 +40,18 @@ def read_info(filename='Fdata/info.dat'):
         if content == '=' * 70:
             if status == 0:
                 status = 1
-            elif status == 1:
+            elif status == 2:
                 status = 0
+                continue
 
         if status == 1:
             result_dict[lines[il + 2].strip().split()[0]] = {
-                'number': int(lines[il + 1].strip()),
+                'number': int(lines[il + 3].strip().split()[0]),
                 'nshell': int(lines[il + 5].strip().split()[0]),
                 'shells': [int(i) for i in lines[il + 6].strip().split()],
-                'occupation': [int(i) for i in lines[il + 7].strip().split()],
+                'occupation': [float(i) for i in lines[il + 7].strip().split()],
             }
-            status = 0
+            status = 2
         else:
             continue
 
@@ -58,42 +59,67 @@ def read_info(filename='Fdata/info.dat'):
 
 
 # gaussian function
-def gaussian(r, n=1, A=np.array([1]), a=np.array([1])):
-    f = np.sum([Ai * r ** (n - 1) * np.exp(-ai * r ** 2)
-                for Ai, ai in zip(A, a)], axis=0)
+def gaussian(r, l=0, A=np.array([1.0]), a=np.array([0.1])):
+    if l == 0:
+        f = np.sum([Ai * np.exp(-ai * (r ** 2))
+                    for Ai, ai in zip(A, a)], axis=0)
+    else:
+        f = np.sum([Ai * (r ** l) * np.exp(-ai * (r ** 2))
+                    for Ai, ai in zip(A, a)], axis=0)
     return f
 
 
 # loss function
 def loss_function(x, *args):
     len_x = int(len(x) / 2)
-    alpha = x[0:len_x]
-    A = x[len_x:]
-    n, r, Y = args
+    alpha = 10 ** x[0:len_x]
+    A = np.asarray(x[len_x:])
+    l, r, Y = args
     if r.shape != Y.shape:
         raise ValueError('Shapes for args[1] and args[2] are not equal!')
-    loss = np.abs(Y - gaussian(r, n, A, alpha)).sum()
+    # loss = np.abs(Y - gaussian(r, l, A, alpha)).sum()
+    loss = np.mean((gaussian(r, l, A, alpha) - Y)**2)
     return loss
 
 
-def fit_wf(data, x0, n=1, bnds=None):
+def loss_jac(x, *args):
+    len_x = int(len(x) / 2)
+    alpha = 10 ** x[0:len_x]
+    A = np.asarray(x[len_x:])
+    l, r, Y = args
+    if r.shape != Y.shape:
+        raise ValueError('Shapes for args[1] and args[2] are not equal!')
+    if l == 0:
+        d_alpha = np.asarray([Ai * (-1) * (r ** 2) * np.exp(-ai * (r ** 2)) * ai * np.log(10)
+                              for Ai, ai in zip(A, alpha)])
+        d_A = np.asarray([np.exp(-ai * (r ** 2)) for ai in alpha])
+    else:
+        d_alpha = np.asarray([Ai * (r ** l) * (-1) * (r ** 2) * np.exp(-ai * (r ** 2)) * ai * np.log(10)
+                              for Ai, ai in zip(A, alpha)])
+        d_A = np.asarray([(r ** l) * np.exp(-ai * (r ** 2)) for ai in alpha])
+    der = np.concatenate([d_alpha, d_A])
+    jac = 2 * np.mean((gaussian(r, l, A, alpha) - Y) * der, axis=1)
+    return jac
+
+
+def fit_wf(data, x0, l=0, bnds=None):
     R, Y = np.asarray(data)
     nz = int(len(x0) / 2)
     if bnds is not None:
         bnds = [bnds[0]] * nz + [bnds[1]] * nz
-    res = minimize(loss_function, x0, bounds=bnds, args=(n, R, Y))
+    res = minimize(loss_function, x0, bounds=bnds, args=(l, R, Y))
     alpha = res.x[0:nz]  # exponential parameters,
     Ae = res.x[nz:]  # coefficients
-    Y_fit = gaussian(R, n, Ae, alpha)
+    Y_fit = gaussian(R, l, Ae, alpha)
     error = (np.linalg.norm(Y - Y_fit)) / len(Y)
     return [Ae, alpha, Y_fit, error]
 
 
-def fit_wf_from_random(data, n=1, tol=None, Nzeta=None, bnds=None):
+def fit_wf_from_random(data, l=0, tol=None, Nzeta=None, bnds=None):
     """
 
     :param data: shape = [N, 2]
-    :param n: principal quantum number
+    :param l: principal quantum number
     :param tol: Error tolerance
     :param Nzeta: number of gaussian
     :param bnds: boundary for fitting
@@ -113,7 +139,7 @@ def fit_wf_from_random(data, n=1, tol=None, Nzeta=None, bnds=None):
         A0 = np.random.rand(nz)  # initial value for A
         a0 = np.random.rand(nz)  # initial value for alpha0
         x0 = np.concatenate([A0, a0])  # initial para vector
-        Ae, ae, Y_fit, error = fit_wf(data, x0, n=n, bnds=bnds)
+        Ae, ae, Y_fit, error = fit_wf(data, x0, l=l, bnds=bnds)
         if tol is not None:
             if error < tol:
                 success = True
@@ -128,12 +154,18 @@ def fit_wf_from_random(data, n=1, tol=None, Nzeta=None, bnds=None):
     return [Ae, ae, Y_fit]
 
 
-def plot_fitting(data, n, Ae, ae, output=None):
+def plot_fitting(data, l, Ae, ae, output=None):
     R, Y = np.asarray(data)
     plt.plot(R, Y, '*')
-    plt.plot(R, gaussian(R, n, Ae, ae))
+    plt.plot(R, gaussian(R, l, Ae, ae))
+    Y_min = min(Y)
+    Y_max = max(Y)
+    Y_range = Y_max - Y_min
+    ymin = Y_min - Y_range * 0.2
+    ymax = Y_max + Y_range * 0.2
+    plt.ylim([ymin, ymax])
     for Ai, ai in zip(Ae, ae):
-        plt.plot(R, gaussian(R, n, [Ai], [ai]))
+        plt.plot(R, gaussian(R, l, [Ai], [ai]))
     if output is not None:
         plt.savefig(output)
     else:
@@ -160,6 +192,15 @@ def get_initial_gbs_guess(element_num, primary_num, shell_name):
     raise NotImplementedError
 
 
+def get_primary_number(number, shell, is_excited):
+    # TODO: this is a dirty way to get primary number. It depends on same shell configuration.
+    # The best way is write primary number in info.dat or wf.dat @JamesLewis .
+    n = SHELL_PRIMARY_NUMS[number][shell]
+    if is_excited == '1':
+        n += 1
+    return n
+
+
 # run this after begin.x
 def fit_gaussian(prog='fit_basis_set',
                  description='Fit Fireball basis set to Gaussian-type basis set.'):
@@ -181,15 +222,13 @@ def fit_gaussian(prog='fit_basis_set',
         wf_data = read_wf(input_name)
 
         # get initial guess
-        primary_number = SHELL_PRIMARY_NUMS[element_number][shell]
-        if is_excited == '1':
-            primary_number += 1
+        primary_number = get_primary_number(element_number, shell, is_excited)
         ini_guess = get_initial_gbs_guess(element_number, primary_number, shell_name)
         # fitting by Gaussian
-        Ae, ae, Y_fit, error = fit_wf(wf_data.T, ini_guess, n=primary_number)
+        Ae, ae, Y_fit, error = fit_wf(wf_data.T, ini_guess, l=shell)
         if args.plot:
             output_fig = "{:03d}.wf-{}{}-fitting.png".format(element_number, shell_name, is_excited)
-            plot_fitting(wf_data.T, primary_number, Ae, ae, output=output_fig)
+            plot_fitting(wf_data.T, shell, Ae, ae, output=output_fig)
 
         output = "{:03d}.wf-{}{}.gbs".format(element_number, shell_name, is_excited)
         with open(output, 'w') as f:

@@ -584,10 +584,14 @@ class Fireball(GenerateFireballInput, Calculator):
         if self._shell_info is None:
             # read Fdata/info.dat
             self._shell_info = read_info(os.path.join(self.Fdata_path, 'info.dat'))
+
+            # TODO: this is a dirty way to get exicted_label.
+            #  The excited label can be obtained by set(ishell). However, still dirty.
             for symbol, value in self._shell_info.items():
                 ishell = value['shells']
-                len_ground = SHELL_PRIMARY_NUMS[value['number']]
-                excited_label = [0] * len(len_ground) + [1] * (ishell - len_ground)
+                len_ground = len(SHELL_PRIMARY_NUMS[value['number']])
+                assert len(set(ishell)) <= len_ground  # if not, something wrong during generating Fdata
+                excited_label = [0] * len_ground + [1] * (len(ishell) - len_ground)
                 self._shell_info[symbol]['excited'] = excited_label
         return self._shell_info
 
