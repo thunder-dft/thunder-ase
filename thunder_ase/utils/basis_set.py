@@ -4,6 +4,8 @@ import os.path
 import numpy as np
 from scipy.optimize import minimize, basinhopping
 import matplotlib.pyplot as plt
+
+from thunder_ase.utils import ordinal
 from thunder_ase.utils.shell_dict import SHELL_PRIMARY_NUMS, SHELL_NUM, SHELL_NAME
 from thunder_ase.utils.ANO_DK3_GBS import ANO_DK3_GBS as GBS
 from ase.data import chemical_symbols
@@ -114,7 +116,7 @@ def fit_wf(data, x0, l=0, bnds=None):
     return [Ae, alpha, error]
 
 
-def fit_wf_from_random(data, l=0, tol=1e-5, Nzeta0=3, Nzeta_max=20, Niter=3, bnds=None):
+def fit_wf_from_random(data, l=0, tol=1e-5, Nzeta0=3, Nzeta_max=10, Niter=3, bnds=None):
     """
 
     :param Niter:
@@ -139,8 +141,10 @@ def fit_wf_from_random(data, l=0, tol=1e-5, Nzeta0=3, Nzeta_max=20, Niter=3, bnd
             bnds_lb = [-1.5] * nz + [min([-1.5, Y_min])] * nz
             bnds_ub = [4.0] * nz + [max([1.5, Y_max])] * nz
             bounds = list(zip(bnds_lb, bnds_ub))
+        else:
+            bounds = bnds
         for itry in range(Niter):
-            print("::: The {}th try for Nzeta = {} ...".format(itry+1, nz))
+            print("::: The {} try for Nzeta = {} ...".format(ordinal(itry+1), nz))
             init_alpha = np.random.random(nz) * 3.5 - 1.0  # -1.0 ~ 2.5
             init_coeff = np.random.random(nz) * (Y_max - Y_min) + Y_min
             init_guess = np.concatenate([init_alpha, init_coeff])
@@ -228,8 +232,8 @@ def fit_gaussian(prog='fit_basis_set',
         description=description, )
     parser.add_argument('input_name', nargs='+', help='Fireball wave function file.')
     parser.add_argument('-p', '--plot', action='store_true')
-    parser.add_argument('-t', '--tolerance', type=float, dest='tolerance', default=1e-5)
-    parser.add_argument('-Nz', '--Nzeta_max', type=int, dest='nzeta_max', default=20)
+    parser.add_argument('-t', '--tolerance', type=float, dest='tolerance', default=1e-4)
+    parser.add_argument('-Nz', '--Nzeta_max', type=int, dest='nzeta_max', default=10)
     parser.add_argument('-Nz0', '--Nzeta0', type=int, dest='nzeta0', default=4)
     parser.add_argument('-Nt', '--Ntry', type=int, dest='ntry', default=3)
     args = parser.parse_args()
