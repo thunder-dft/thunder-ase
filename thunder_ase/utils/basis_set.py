@@ -2,7 +2,7 @@ import argparse
 import os.path
 
 import numpy as np
-from scipy.optimize import minimize
+from scipy.optimize import minimize, basinhopping
 import matplotlib.pyplot as plt
 from thunder_ase.utils.shell_dict import SHELL_PRIMARY_NUMS, SHELL_NUM, SHELL_NAME
 from thunder_ase.utils.ANO_DK3_GBS import ANO_DK3_GBS as GBS
@@ -115,9 +115,10 @@ def fit_wf(data, x0, l=0, bnds=None):
     return [Ae, alpha, Y_fit, error]
 
 
-def fit_wf_from_random(data, l=0, tol=None, Nzeta=None, bnds=None):
+def fit_wf_from_random(data, l=0, tol=1e-5, Nzeta0=3, Nzeta_max=20, Niter=1, bnds=None):
     """
 
+    :param Niter:
     :param data: shape = [N, 2]
     :param l: principal quantum number
     :param tol: Error tolerance
@@ -125,33 +126,46 @@ def fit_wf_from_random(data, l=0, tol=None, Nzeta=None, bnds=None):
     :param bnds: boundary for fitting
     :return:
     """
-    if Nzeta is None:
-        if tol is None:
-            tol = 1.0E-5
-        Nzeta0 = 3  # initial zeta number
-        Nzeta = 20  # so the maximum Nzeta is 20
-    else:
-        Nzeta0 = Nzeta
-
+    R, Y = np.asarray(data)
     success = False
-    Ae, ae, Y_fit, error = None, None, None, None
-    for nz in range(Nzeta0, Nzeta + 1):
-        A0 = np.random.rand(nz)  # initial value for A
-        a0 = np.random.rand(nz)  # initial value for alpha0
-        x0 = np.concatenate([A0, a0])  # initial para vector
-        Ae, ae, Y_fit, error = fit_wf(data, x0, l=l, bnds=bnds)
-        if tol is not None:
-            if error < tol:
-                success = True
-                break
+    error = np.inf
+    result_res = None
+    for nz in range(Nzeta0, Nzeta_max):
+        init_alpha = np.random.random(nz) * 3.5 - 1.0  # -1.0 ~ 2.5
+        init_coeff = np.random.random(nz) * 0.5 + 0.5  # 0.5 ~ 1.0
+        init_guess = np.concatenate([init_alpha, init_coeff])
+
+        if bnds is None:
+            bnds_lb = [-1.5] * nz + [-1.5] * nz
+            bnds_ub = [4.0] * nz + [1.5] * nz
+            bnds = list(zip(bnds_lb, bnds_ub))
+
+        for itry in range(Niter):
+            res = basinhopping(loss_function, init_guess, T=0.0001, niter=100, disp=True, stepsize=0.5,
+                               niter_success=50,
+                               interval=20,
+                               stepwise_factor=0.8,
+                               minimizer_kwargs={'args': (l, R, Y),
+                                                 'bounds': bnds,
+                                                 'jac': loss_jac,
+                                                 }
+                               )
+            if res.fun < error:
+                result_res = res
+                error = res.fun
+                if result_res < tol:
+                    success = True
+                    break
+
+    alpha = 10 ** result_res.x[0:nz]  # exponential parameters,
+    Ae = result_res.x[nz:]  # coefficients
+    Y_fit = gaussian(R, l, Ae, alpha)
 
     if not success:
-        if tol is None:
-            print("Fitting error is {} for {} gaussians.".format(error, Nzeta))
-        else:
-            print("Warning: Fitting error {} didn't meet the tolerance {} for {} gaussians.".format(error, tol, Nzeta))
+        print("Warning: Fitting error {} didn't meet the tolerance {} for {} gaussians."
+              .format(error, tol, nz))
 
-    return [Ae, ae, Y_fit]
+    return [Ae, alpha, Y_fit, error]
 
 
 def plot_fitting(data, l, Ae, ae, output=None):
