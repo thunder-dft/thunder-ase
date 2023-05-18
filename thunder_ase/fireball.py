@@ -602,16 +602,21 @@ class Fireball(GenerateFireballInput, Calculator):
 
     def write_mwfn(self, ):
         mwfn_dict = MWFN_DEFAULT.copy()
+        # Initialize default data format
+        for k, v in mwfn_dict.items():
+            if v is not None:
+                mwfn_dict[k] = MWFN_FORMAT[k].format(v)
+
         # atom information
         mwfn_dict['ncenter'] = MWFN_FORMAT['ncenter'].format(len(self.atoms))
-        atoms_coord = [MWFN_FORMAT['atoms_coord'].format(idx,
+        atoms_coord = [MWFN_FORMAT['atoms_coord'].format(idx+1,
                                                          iatom.symbol,
                                                          iatom.number,
                                                          self.get_valence_charge(idx),
                                                          *iatom.position)
                        for idx, iatom in enumerate(self.atoms)]
         mwfn_dict['atoms_coord'] = '\n'.join(atoms_coord)
-        if self.atoms.pbc:
+        if np.any(self.atoms.pbc):
             mwfn_dict['ndim'] = MWFN_FORMAT['ndim'].format(3)
             mwfn_dict['cellv1'] = (MWFN_FORMAT['cellv1'] * 3).format(*self.atoms.cell[0])
             mwfn_dict['cellv2'] = (MWFN_FORMAT['cellv2'] * 3).format(*self.atoms.cell[1])
@@ -633,7 +638,7 @@ class Fireball(GenerateFireballInput, Calculator):
         contraction_coefficients = []
         for idx, symbol in enumerate(self.atoms.symbols):
             ishells = self.shell_info[symbol]['shells']
-            shell_centers += [idx] * len(ishells)
+            shell_centers += [idx+1] * len(ishells)
             shell_types += ishells
             excited_label = self.shell_info[symbol]['excited']
             for shell, is_excited in zip(ishells, excited_label):
@@ -659,8 +664,12 @@ class Fireball(GenerateFireballInput, Calculator):
         mwfn_dict['shell_contraction_degress'] = format_data('shell_contraction_degress', shell_contraction_degress)
         mwfn_dict['primitive_exponents'] = format_data('primitive_exponents', primitive_exponents)
         mwfn_dict['contraction_coefficients'] = format_data('contraction_coefficients', contraction_coefficients)
-        # write out
+
+        self.mwfn_dict = mwfn_dict
         content = MWFN_TEMPLATE.substitute(mwfn_dict)
+        # TODO: read orbital info, append to the content
+        
+        # write out
         with open(self.sname + '.mwfn', 'w') as f:
             f.write(content)
 

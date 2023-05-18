@@ -29,13 +29,11 @@ $shell_types
 $$Shell centers
 $shell_centers
 $$Shell contraction degrees
-$v
+$shell_contraction_degress
 $$Primitive exponents
 $primitive_exponents
 $$Contraction coefficients
-$contraction_coefficients
-    
-"""
+$contraction_coefficients"""
 )
 
 MWFN_DEFAULT = {
@@ -71,9 +69,9 @@ MWFN_FORMAT = {
     'e_tot': '{:16.8E}',
     'vt_ratio': '{:12.8f}',
     'ndim': '{:4d}',
-    'cellv1': '{:12.8f}{:12.8f}{:12.8f}',
-    'cellv2': '{:12.8f}{:12.8f}{:12.8f}',
-    'cellv3': '{:12.8f}{:12.8f}{:12.8f}',
+    'cellv1': '{:12.8f}',
+    'cellv2': '{:12.8f}',
+    'cellv3': '{:12.8f}',
     'ncenter': '{:8d}',
     'atoms_coord': '{:6d} {:<2s}{:4d}{:6.1f}{:16.8f}{:16.8f}{:16.8f}',
     'nbasis': '{:8d}',
@@ -103,6 +101,6 @@ def format_data(key, data):
     nline = int(len(data) / maxlen)
     result = ''
     for i in range(nline):
-        result += (MWFN_FORMAT[key] * maxlen).format(data[i*maxlen:(i+1)*maxlen]) + '\n'
-    result += (MWFN_FORMAT[key] * res).format(data[-res:])
+        result += (MWFN_FORMAT[key] * maxlen).format(*data[i*maxlen:(i+1)*maxlen]) + '\n'
+    result += (MWFN_FORMAT[key] * res).format(*data[-res:])
     return result

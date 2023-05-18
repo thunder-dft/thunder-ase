@@ -6,6 +6,7 @@ atoms = bulk('Si', 'diamond', a=5.459)
 Fdata_path = '/home/ren/Programs/Github/thunder-ase/data/Fdata-McWEDA-0.15-3SN.Sis4.8p5.35'
 kwargs = {'kpt_size': [3, 3, 3],
           'iwriteout_charges': 1,  # Writing out the charges.
+          'iwriteout_cdcoeffs': 1,  # Writing out orbital info.
           'taurelax': 5.0,
           'efermi_T': 200.0,
           'ifix_CHARGES': 0,
@@ -24,4 +25,5 @@ efermi = atoms.calc.get_fermi_level()
 
 print("The energy is {:.3f} eV.".format(e0))
 print("The Fermi Level is {:.3f} eV.".format(efermi))
+calc.write_mwfn()
 print("Done!")

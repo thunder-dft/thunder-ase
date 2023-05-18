@@ -273,7 +273,7 @@ def fit_gaussian(prog='fit_basis_set',
 
 def read_gaussian(element_number, shell, is_excited, Fdata_path=None):
     shell_name = SHELL_NAME[shell]
-    filename = os.path.join(Fdata_path, "{:03d}.wf-{}{}.gbs".format(element_number, shell_name, is_excited))
+    filename = os.path.join(Fdata_path, 'basis', "{:03d}.wf-{}{}.gbs".format(element_number, shell_name, is_excited))
     with open(filename, 'r') as f:
         lines = f.readlines()
     array = np.asarray([[float(i) for i in line.split()] for line in lines])
