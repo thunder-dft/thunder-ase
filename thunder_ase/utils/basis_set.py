@@ -78,7 +78,7 @@ def loss_function(x, *args):
     if r.shape != Y.shape:
         raise ValueError('Shapes for args[1] and args[2] are not equal!')
     # loss = np.abs(Y - gaussian(r, l, A, alpha)).sum()
-    loss = np.mean((gaussian(r, l, A, alpha) - Y)**2)
+    loss = np.mean((gaussian(r, l, A, alpha) - Y) ** 2)
     return loss
 
 
@@ -110,12 +110,11 @@ def fit_wf(data, x0, l=0, bnds=None):
     res = minimize(loss_function, x0, bounds=bnds, args=(l, R, Y))
     alpha = res.x[0:nz]  # exponential parameters,
     Ae = res.x[nz:]  # coefficients
-    Y_fit = gaussian(R, l, Ae, alpha)
-    error = (np.linalg.norm(Y - Y_fit)) / len(Y)
-    return [Ae, alpha, Y_fit, error]
+    error = res.fun
+    return [Ae, alpha, error]
 
 
-def fit_wf_from_random(data, l=0, tol=1e-5, Nzeta0=3, Nzeta_max=20, Niter=1, bnds=None):
+def fit_wf_from_random(data, l=0, tol=1e-5, Nzeta0=3, Nzeta_max=20, Niter=3, bnds=None):
     """
 
     :param Niter:
@@ -127,45 +126,51 @@ def fit_wf_from_random(data, l=0, tol=1e-5, Nzeta0=3, Nzeta_max=20, Niter=1, bnd
     :return:
     """
     R, Y = np.asarray(data)
-    success = False
+    Y_min = Y.min()
+    Y_max = Y.max()
     error = np.inf
     result_res = None
-    for nz in range(Nzeta0, Nzeta_max):
-        init_alpha = np.random.random(nz) * 3.5 - 1.0  # -1.0 ~ 2.5
-        init_coeff = np.random.random(nz) * 0.5 + 0.5  # 0.5 ~ 1.0
-        init_guess = np.concatenate([init_alpha, init_coeff])
 
+    print("Fitting parameters: shell = {}, Nzeta0 = {}, Nzeta_max = {}, Ntry = {}, tol = {}"
+          .format(l, Nzeta0, Nzeta_max, Niter, tol))
+
+    for nz in range(Nzeta0, Nzeta_max+1):
         if bnds is None:
-            bnds_lb = [-1.5] * nz + [-1.5] * nz
-            bnds_ub = [4.0] * nz + [1.5] * nz
-            bnds = list(zip(bnds_lb, bnds_ub))
-
+            bnds_lb = [-1.5] * nz + [min([-1.5, Y_min])] * nz
+            bnds_ub = [4.0] * nz + [max([1.5, Y_max])] * nz
+            bounds = list(zip(bnds_lb, bnds_ub))
         for itry in range(Niter):
-            res = basinhopping(loss_function, init_guess, T=0.0001, niter=100, disp=True, stepsize=0.5,
+            print("::: The {}th try for Nzeta = {} ...".format(itry+1, nz))
+            init_alpha = np.random.random(nz) * 3.5 - 1.0  # -1.0 ~ 2.5
+            init_coeff = np.random.random(nz) * (Y_max - Y_min) + Y_min
+            init_guess = np.concatenate([init_alpha, init_coeff])
+            res = basinhopping(loss_function, init_guess, T=0.0001, niter=100, disp=False, stepsize=0.5,
                                niter_success=50,
                                interval=20,
                                stepwise_factor=0.8,
                                minimizer_kwargs={'args': (l, R, Y),
-                                                 'bounds': bnds,
+                                                 'bounds': bounds,
                                                  'jac': loss_jac,
                                                  }
                                )
             if res.fun < error:
                 result_res = res
                 error = res.fun
-                if result_res < tol:
-                    success = True
-                    break
+                if error < tol:
+                    alpha = 10 ** result_res.x[0:nz]  # exponential parameters,
+                    Ae = result_res.x[nz:]  # coefficients
+                    print("Success!: Fitting error {} meet the tolerance {} for {} gaussians."
+                          .format(error, tol, nz))
+                    return [Ae, alpha, error]
+        print("Fitting error {} didn't meet the tolerance {} for {} gaussians after {} try."
+              .format(error, tol, nz, Niter))
 
-    alpha = 10 ** result_res.x[0:nz]  # exponential parameters,
-    Ae = result_res.x[nz:]  # coefficients
-    Y_fit = gaussian(R, l, Ae, alpha)
+    alpha = 10 ** result_res.x[0:Nzeta_max]  # exponential parameters,
+    Ae = result_res.x[Nzeta_max:]  # coefficients
+    print("Warning: Fitting error {} didn't meet the tolerance {} for {} gaussians."
+          .format(error, tol, Nzeta_max))
 
-    if not success:
-        print("Warning: Fitting error {} didn't meet the tolerance {} for {} gaussians."
-              .format(error, tol, nz))
-
-    return [Ae, alpha, Y_fit, error]
+    return [Ae, alpha, error]
 
 
 def plot_fitting(data, l, Ae, ae, output=None):
@@ -223,6 +228,10 @@ def fit_gaussian(prog='fit_basis_set',
         description=description, )
     parser.add_argument('input_name', nargs='+', help='Fireball wave function file.')
     parser.add_argument('-p', '--plot', action='store_true')
+    parser.add_argument('-t', '--tolerance', type=float, dest='tolerance', default=1e-5)
+    parser.add_argument('-Nz', '--Nzeta_max', type=int, dest='nzeta_max', default=20)
+    parser.add_argument('-Nz0', '--Nzeta0', type=int, dest='nzeta0', default=4)
+    parser.add_argument('-Nt', '--Ntry', type=int, dest='ntry', default=3)
     args = parser.parse_args()
 
     for input_name in args.input_name:
@@ -236,10 +245,18 @@ def fit_gaussian(prog='fit_basis_set',
         wf_data = read_wf(input_name)
 
         # get initial guess
-        primary_number = get_primary_number(element_number, shell, is_excited)
-        ini_guess = get_initial_gbs_guess(element_number, primary_number, shell_name)
+        # primary_number = get_primary_number(element_number, shell, is_excited)
+        # ini_guess = get_initial_gbs_guess(element_number, primary_number, shell_name)
         # fitting by Gaussian
-        Ae, ae, Y_fit, error = fit_wf(wf_data.T, ini_guess, l=shell)
+        # Ae, ae, Y_fit, error = fit_wf(wf_data.T, ini_guess, l=shell)
+
+        # fitting from random
+        Ae, ae, error = fit_wf_from_random(data=wf_data.T, l=shell,
+                                                  tol=args.tolerance,
+                                                  Nzeta_max=args.nzeta_max,
+                                                  Nzeta0=args.nzeta0,
+                                                  Niter=args.ntry)
+
         if args.plot:
             output_fig = "{:03d}.wf-{}{}-fitting.png".format(element_number, shell_name, is_excited)
             plot_fitting(wf_data.T, shell, Ae, ae, output=output_fig)
@@ -247,7 +264,7 @@ def fit_gaussian(prog='fit_basis_set',
         output = "{:03d}.wf-{}{}.gbs".format(element_number, shell_name, is_excited)
         with open(output, 'w') as f:
             for A, a in zip(Ae, ae):
-                f.write("{: .8E}  {: .8E}\n".format(A, a))
+                f.write("{: .8E}  {: .8E}\n".format(a, A))  # order is alpha, co_effi
 
 
 def read_gaussian(element_number, shell, is_excited, Fdata_path=None):
