@@ -485,6 +485,10 @@ class Fireball(GenerateFireballInput, Calculator):
         result = jsonio.read_json(output)
         self.results = result['fireball'][-1]
 
+    def get_forces(self, atoms=None):
+        forces = self.get_property('forces', atoms)
+        return np.asarray(forces)
+
     def get_fermi_level(self):
         return self.get_property('fermi')
 
