@@ -668,7 +668,7 @@ class Fireball(GenerateFireballInput, Calculator):
         self.mwfn_dict = mwfn_dict
         content = MWFN_TEMPLATE.substitute(mwfn_dict)
         # TODO: read orbital info, append to the content
-        
+
         # write out
         with open(self.sname + '.mwfn', 'w') as f:
             f.write(content)

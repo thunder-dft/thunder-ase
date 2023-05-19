@@ -33,7 +33,8 @@ $shell_contraction_degress
 $$Primitive exponents
 $primitive_exponents
 $$Contraction coefficients
-$contraction_coefficients"""
+$contraction_coefficients
+"""
 )
 
 MWFN_DEFAULT = {
@@ -101,6 +102,8 @@ def format_data(key, data):
     nline = int(len(data) / maxlen)
     result = ''
     for i in range(nline):
-        result += (MWFN_FORMAT[key] * maxlen).format(*data[i*maxlen:(i+1)*maxlen]) + '\n'
+        result += (MWFN_FORMAT[key] * maxlen).format(*data[i*maxlen:(i+1)*maxlen])
+        if i < nline - 1:
+            result += '\n'
     result += (MWFN_FORMAT[key] * res).format(*data[-res:])
     return result
