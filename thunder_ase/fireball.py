@@ -15,7 +15,7 @@ from ase.geometry import get_distances
 import ase.spacegroup
 from ase.io import jsonio
 from ase.dft.kpoints import BandPath
-from thunder_ase.utils.mwfn import MWFN_FORMAT, MWFN_DEFAULT, MWFN_TEMPLATE, format_data
+from thunder_ase.utils.mwfn import MWFN_FORMAT, MWFN_DEFAULT, MWFN_TEMPLATE, format_data, read_cdcoeffs
 from thunder_ase.utils.basis_set import read_info, read_gaussian
 from thunder_ase.utils.shell_dict import SHELL_NUM, SHELL_NAME, SHELL_PRIMARY_NUMS, SHELL_PRIMITIVE
 
@@ -604,7 +604,7 @@ class Fireball(GenerateFireballInput, Calculator):
         shell_info = self.shell_info[isymbol]
         return sum(shell_info['occupation'])
 
-    def write_mwfn(self, ):
+    def write_mwfn(self, kpoint=0):
         mwfn_dict = MWFN_DEFAULT.copy()
         # Initialize default data format
         for k, v in mwfn_dict.items():
@@ -669,6 +669,7 @@ class Fireball(GenerateFireballInput, Calculator):
         mwfn_dict['primitive_exponents'] = format_data('primitive_exponents', primitive_exponents)
         mwfn_dict['contraction_coefficients'] = format_data('contraction_coefficients', contraction_coefficients)
 
+        mwfn_dict['orbital_coeffs'] = read_cdcoeffs(self.sname+'.cdcoeffs-mwfn')[kpoint]
         self.mwfn_dict = mwfn_dict
         content = MWFN_TEMPLATE.substitute(mwfn_dict)
         # TODO: read orbital info, append to the content

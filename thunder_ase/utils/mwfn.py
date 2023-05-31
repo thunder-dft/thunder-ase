@@ -34,6 +34,9 @@ $$Primitive exponents
 $primitive_exponents
 $$Contraction coefficients
 $contraction_coefficients
+
+# Orbital information (nindbasis orbitals)
+$orbital_coeffs
 """
 )
 
@@ -107,3 +110,22 @@ def format_data(key, data):
             result += '\n'
     result += (MWFN_FORMAT[key] * res).format(*data[-res:])
     return result
+
+
+def read_cdcoeffs(filename):
+    with open(filename, 'r') as f:
+        lines = f.readlines()
+
+    block_start, block_end = [], []
+    for il, line in enumerate(lines):
+        if "Kpoint=" in line:
+            block_start.append(il+1)
+            if il > 0:
+                block_end.append(il-1)
+    block_end.append(len(lines)-1)
+
+    coeffs = []
+    for start, end in zip(block_start, block_end):
+        coeffs.append(''.join(lines[start:end]))
+
+    return coeffs
