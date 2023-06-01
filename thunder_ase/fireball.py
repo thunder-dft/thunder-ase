@@ -8,6 +8,7 @@ import os
 import subprocess
 from typing import Dict, Any
 import ase
+from ase.units import Hartree
 import numpy as np
 from ase.calculators.calculator import Calculator, CalculationFailed, all_changes
 from ase.dft.kpoints import monkhorst_pack, kpoint_convert
@@ -15,7 +16,8 @@ from ase.geometry import get_distances
 import ase.spacegroup
 from ase.io import jsonio
 from ase.dft.kpoints import BandPath
-from thunder_ase.utils.mwfn import MWFN_FORMAT, MWFN_DEFAULT, MWFN_TEMPLATE, format_data, read_cdcoeffs
+from thunder_ase.utils.mwfn import MWFN_FORMAT, MWFN_DEFAULT, MWFN_TEMPLATE, \
+    CELL_TEMPLATE, format_data, read_cdcoeffs
 from thunder_ase.utils.basis_set import read_info, read_gaussian
 from thunder_ase.utils.shell_dict import SHELL_NUM, SHELL_NAME, SHELL_PRIMARY_NUMS, SHELL_PRIMITIVE
 
@@ -332,10 +334,11 @@ class GenerateFireballInput:
     def write_input(self, atoms=None, Fdata_path=None):
         if atoms is not None:
             self.atoms = atoms.copy()
-        self.write_Fdata_inp(atoms=atoms, Fdata_path=Fdata_path)
+        self.write_Fdata_inp(atoms=self.atoms, Fdata_path=Fdata_path)
         self.write_options()
         self.write_atoms(pbc=self.atoms.pbc)
-        self.write_kpts()
+        if np.any(self.atoms.pbc):
+            self.write_kpts()
 
     def read_options(self, input_file='structures.inp', read_atoms=False):
         # read structures.inp, get names for atoms and kpoints
@@ -620,11 +623,18 @@ class Fireball(GenerateFireballInput, Calculator):
                                                          *iatom.position)
                        for idx, iatom in enumerate(self.atoms)]
         mwfn_dict['atoms_coord'] = '\n'.join(atoms_coord)
+
+        # cell info
         if np.any(self.atoms.pbc):
-            mwfn_dict['ndim'] = MWFN_FORMAT['ndim'].format(3)
-            mwfn_dict['cellv1'] = (MWFN_FORMAT['cellv1'] * 3).format(*self.atoms.cell[0])
-            mwfn_dict['cellv2'] = (MWFN_FORMAT['cellv2'] * 3).format(*self.atoms.cell[1])
-            mwfn_dict['cellv3'] = (MWFN_FORMAT['cellv3'] * 3).format(*self.atoms.cell[2])
+            cell_info = {
+                'ndim': MWFN_FORMAT['ndim'].format(3),
+                'cellv1': (MWFN_FORMAT['cellv1'] * 3).format(*self.atoms.cell[0]),
+                'cellv2': (MWFN_FORMAT['cellv2'] * 3).format(*self.atoms.cell[1]),
+                'cellv3': (MWFN_FORMAT['cellv3'] * 3).format(*self.atoms.cell[2]),
+            }
+            mwfn_dict['cell_info'] = CELL_TEMPLATE.substitute(cell_info)
+        else:
+            mwfn_dict['cell_info'] = ''
 
         # electron for alpha and beta
         tot_elec = sum([self.get_valence_charge(i) for i in range(len(self.atoms))])
@@ -633,7 +643,7 @@ class Fireball(GenerateFireballInput, Calculator):
         mwfn_dict['naelec'] = MWFN_FORMAT['naelec'].format(naelec)
         mwfn_dict['nbelec'] = MWFN_FORMAT['nbelec'].format(nbelec)
         # total energy
-        mwfn_dict['e_tot'] = MWFN_FORMAT['e_tot'].format(self.get_potential_energy())
+        mwfn_dict['e_tot'] = MWFN_FORMAT['e_tot'].format(self.get_potential_energy() / Hartree)
         # Basis set info
         shell_types = []
         shell_centers = []

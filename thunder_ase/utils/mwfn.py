@@ -1,5 +1,13 @@
 from string import Template
 
+CELL_TEMPLATE = Template(
+"""Ndim=$ndim
+cellv1= $cellv1
+cellv2= $cellv2
+cellv3= $cellv3
+"""
+)
+
 MWFN_TEMPLATE = Template(
     """# Generate by Thunder-ASE
 Wfntype=$wfntype
@@ -8,11 +16,7 @@ Naelec=$naelec
 Nbelec=$nbelec
 E_tot=$e_tot
 VT_ratio=$vt_ratio
-Ndim=$ndim
-cellv1= $cellv1
-cellv2= $cellv2
-cellv3= $cellv3
-
+$cell_info
 # Atom information
 Ncenter=$ncenter
 $$Centers
@@ -106,7 +110,7 @@ def format_data(key, data):
     result = ''
     for i in range(nline):
         result += (MWFN_FORMAT[key] * maxlen).format(*data[i*maxlen:(i+1)*maxlen])
-        if i < nline - 1:
+        if i < nline:
             result += '\n'
     result += (MWFN_FORMAT[key] * res).format(*data[-res:])
     return result
