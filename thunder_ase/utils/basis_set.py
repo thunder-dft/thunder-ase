@@ -128,8 +128,6 @@ def fit_wf_from_random(data, l=0, tol=1e-5, Nzeta0=3, Nzeta_max=10, Niter=3, bnd
     :return:
     """
     R, Y = np.asarray(data)
-    Y_min = Y.min()
-    Y_max = Y.max()
     error = np.inf
     result_res = None
 
@@ -138,15 +136,15 @@ def fit_wf_from_random(data, l=0, tol=1e-5, Nzeta0=3, Nzeta_max=10, Niter=3, bnd
 
     for nz in range(Nzeta0, Nzeta_max+1):
         if bnds is None:
-            bnds_lb = [-1.5] * nz + [min([-1.5, Y_min])] * nz
-            bnds_ub = [4.0] * nz + [max([1.5, Y_max])] * nz
+            bnds_lb = [-1.5] * nz + [-1.0] * nz
+            bnds_ub = [4.0] * nz + [1.0] * nz
             bounds = list(zip(bnds_lb, bnds_ub))
         else:
             bounds = bnds
         for itry in range(Niter):
             print("::: The {} try for Nzeta = {} ...".format(ordinal(itry+1), nz))
             init_alpha = np.random.random(nz) * 3.5 - 1.0  # -1.0 ~ 2.5
-            init_coeff = np.random.random(nz) * (Y_max - Y_min) + Y_min
+            init_coeff = np.random.random(nz) * 0.5 + 0.5  # 0.5 ~ 1.0
             init_guess = np.concatenate([init_alpha, init_coeff])
             res = basinhopping(loss_function, init_guess, T=0.0001, niter=100, disp=False, stepsize=0.5,
                                niter_success=50,
@@ -224,8 +222,26 @@ def get_primary_number(number, shell, is_excited):
     return n
 
 
+def expand_data(wf_data):
+    """
+    Expand the cutoff to current_cutoff + 3.0 angstrom.
+    This is to get better fitting for the gaussian tail.
+    :param wf_data:
+    :return:
+    """
+    r, y = wf_data
+    r_max = r.max()
+    dr = r_max / len(r)
+    r_plus = 3.0
+    r_extend = np.arange(r_max+dr, r_max+r_plus, dr)
+    new_r = np.concatenate([r, r_extend])
+    new_y = np.concatenate([y, np.zeros(len(r_extend))])
+
+    return np.asarray([new_r, new_y])
+
+
 # run this after begin.x
-def fit_gaussian(prog='fit_basis_set',
+def fit_gaussian(prog='fit_gaussians',
                  description='Fit Fireball basis set to Gaussian-type basis set.'):
     parser = argparse.ArgumentParser(
         prog=prog,
@@ -246,16 +262,20 @@ def fit_gaussian(prog='fit_basis_set',
         if not os.path.exists(input_name):
             print("{} doesn't exist!".format(input_name))
             raise FileNotFoundError
-        wf_data = read_wf(input_name)
-
-        # get initial guess
-        # primary_number = get_primary_number(element_number, shell, is_excited)
-        # ini_guess = get_initial_gbs_guess(element_number, primary_number, shell_name)
-        # fitting by Gaussian
-        # Ae, ae, Y_fit, error = fit_wf(wf_data.T, ini_guess, l=shell)
-
+        wf_data = read_wf(input_name).T
+        # normalize wf_data for different l
+        if shell == 0:
+            coeff_angular = 1.0 / np.sqrt(4.0 * np.pi)
+        elif shell == 1:
+            coeff_angular = np.sqrt(3.0 / (4.0 * np.pi))
+        elif shell == 2:
+            coeff_angular = np.sqrt(15.0 / (4.0 * np.pi))
+        else:
+            coeff_angular = 1.0
+        wf_data[1] = wf_data[1] * coeff_angular
+        wf_data = expand_data(wf_data)
         # fitting from random
-        Ae, ae, error = fit_wf_from_random(data=wf_data.T, l=shell,
+        Ae, ae, error = fit_wf_from_random(data=wf_data, l=shell,
                                                   tol=args.tolerance,
                                                   Nzeta_max=args.nzeta_max,
                                                   Nzeta0=args.nzeta0,
@@ -263,12 +283,13 @@ def fit_gaussian(prog='fit_basis_set',
 
         if args.plot:
             output_fig = "{:03d}.wf-{}{}-fitting.png".format(element_number, shell_name, is_excited)
-            plot_fitting(wf_data.T, shell, Ae, ae, output=output_fig)
+            plot_fitting(wf_data, shell, Ae, ae, output=output_fig)
 
         output = "{:03d}.wf-{}{}.gbs".format(element_number, shell_name, is_excited)
         with open(output, 'w') as f:
             for A, a in zip(Ae, ae):
-                f.write("{: .8E}  {: .8E}\n".format(a, A))  # order is alpha, co_effi
+                A_norm = A
+                f.write("{: .8E}  {: .8E}\n".format(a, A_norm))  # order is alpha, co_effi
 
 
 def read_gaussian(element_number, shell, is_excited, Fdata_path=None):
