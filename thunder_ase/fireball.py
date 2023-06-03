@@ -17,7 +17,7 @@ import ase.spacegroup
 from ase.io import jsonio
 from ase.dft.kpoints import BandPath
 from thunder_ase.utils.mwfn import MWFN_FORMAT, MWFN_DEFAULT, MWFN_TEMPLATE, \
-    CELL_TEMPLATE, format_data, read_cdcoeffs
+    CELL_TEMPLATE, format_data, read_cdcoeffs, reorder_cdcoeffs
 from thunder_ase.utils.basis_set import read_info, read_gaussian
 from thunder_ase.utils.shell_dict import SHELL_NUM, SHELL_NAME, SHELL_PRIMARY_NUMS, SHELL_PRIMITIVE
 
@@ -679,7 +679,15 @@ class Fireball(GenerateFireballInput, Calculator):
         mwfn_dict['primitive_exponents'] = format_data('primitive_exponents', primitive_exponents)
         mwfn_dict['contraction_coefficients'] = format_data('contraction_coefficients', contraction_coefficients)
 
-        mwfn_dict['orbital_coeffs'] = read_cdcoeffs(self.sname+'.cdcoeffs-mwfn')[kpoint]
+        cdcoeffs = read_cdcoeffs(self.sname+'.cdcoeffs-mwfn')[kpoint]
+        orbital_coeffs = []
+        for orbital in cdcoeffs:
+            info = ''.join(orbital['info'])
+            coeff = orbital['coeff']
+            coeff = reorder_cdcoeffs(coeff, shell_types)
+            orbital_coeffs += [info + format_data('MO_coefficients', coeff)]
+        mwfn_dict['orbital_coeffs'] = '\n\n'.join(orbital_coeffs)
+
         self.mwfn_dict = mwfn_dict
         content = MWFN_TEMPLATE.substitute(mwfn_dict)
         # TODO: read orbital info, append to the content

@@ -1,5 +1,7 @@
 from string import Template
 
+import numpy as np
+
 CELL_TEMPLATE = Template(
 """Ndim=$ndim
 cellv1= $cellv1
@@ -40,6 +42,7 @@ $$Contraction coefficients
 $contraction_coefficients
 
 # Orbital information (nindbasis orbitals)
+
 $orbital_coeffs
 """
 )
@@ -92,6 +95,7 @@ MWFN_FORMAT = {
     'shell_contraction_degress': '{:4d}',
     'primitive_exponents': '{:16.8E}',
     'contraction_coefficients': '{:16.8E}',
+    'MO_coefficients': '{:16.8E}',
 }
 
 KEY_LINE_LEN = {
@@ -100,6 +104,7 @@ KEY_LINE_LEN = {
     'shell_contraction_degress': 20,
     'primitive_exponents': 5,
     'contraction_coefficients': 5,
+    'MO_coefficients': 5,
 }
 
 
@@ -107,13 +112,11 @@ def format_data(key, data):
     maxlen = KEY_LINE_LEN[key]
     res = len(data) % maxlen
     nline = int(len(data) / maxlen)
-    result = ''
-    for i in range(nline):
-        result += (MWFN_FORMAT[key] * maxlen).format(*data[i*maxlen:(i+1)*maxlen])
-        if i < nline:
-            result += '\n'
-    result += (MWFN_FORMAT[key] * res).format(*data[-res:])
-    return result
+    result = [(MWFN_FORMAT[key] * maxlen).format(*data[i*maxlen:(i+1)*maxlen])
+              for i in range(nline)]
+    result.append((MWFN_FORMAT[key] * res).format(*data[-res:]))
+    result = [i for i in result if len(i.strip()) > 0]
+    return '\n'.join(result)
 
 
 def read_cdcoeffs(filename):
@@ -126,10 +129,71 @@ def read_cdcoeffs(filename):
             block_start.append(il+1)
             if il > 0:
                 block_end.append(il-1)
-    block_end.append(len(lines)-1)
+    block_end.append(len(lines))
 
-    coeffs = []
+    coeffs_kpoints = []
     for start, end in zip(block_start, block_end):
-        coeffs.append(''.join(lines[start:end]))
+        coeff_orbitals = []
+        coeff_orbital = {
+            'info': [],
+            'coeff': []
+        }
+        for line in lines[start:end]:
+            content = line.strip()
+            if len(content) == 0:
+                if len(coeff_orbital['info']) > 0:
+                    coeff_orbitals.append(coeff_orbital)
+                coeff_orbital = {
+                    'info': [],
+                    'coeff': []
+                }
+                continue
+            if 'Index' in content:
+                start_orbital = True
+            elif '$Coeff' in content:
+                coeff_orbital['info'].append(line)
+                start_orbital = False
+                continue
+            if start_orbital:
+                coeff_orbital['info'].append(line)
+            else:
+                coeff_orbital['coeff'] += [float(i) for i in content.split()]
 
-    return coeffs
+        coeffs_kpoints.append(coeff_orbitals)
+    return coeffs_kpoints
+
+
+def reorder_cdcoeffs(coeff_list, shell_types):
+    """
+    Re-order the orbital from (Y, Z, X) and (D-2, D-1, D0, D+1, D+2) to
+    (X, Y, Z) and (D0, D+1, D-1, D+2, D-2)
+
+    :param coeff_list:
+    :param shell_types:
+    :return:
+    """
+    new_coeff_list = []
+    idx_curr = 0
+    for st in shell_types:
+        if st == 0:  # s orbital
+            new_coeff_list += [coeff_list[idx_curr]]
+        elif st == 1:  # p orbital
+            new_coeff_list += [
+                coeff_list[idx_curr+2],
+                coeff_list[idx_curr],
+                coeff_list[idx_curr+1]
+            ]
+        elif st == -2:  # pure d orbital
+            new_coeff_list += [
+                coeff_list[idx_curr+2],
+                coeff_list[idx_curr+3],
+                coeff_list[idx_curr+1],
+                coeff_list[idx_curr+4],
+                coeff_list[idx_curr]
+            ]
+        else:
+            NotImplementedError
+
+        idx_curr += np.abs(st) * 2 + 1
+
+    return new_coeff_list

@@ -2,6 +2,7 @@ import argparse
 import os.path
 
 import numpy as np
+from scipy.special import factorial2
 from scipy.optimize import minimize, basinhopping
 import matplotlib.pyplot as plt
 
@@ -9,7 +10,7 @@ from thunder_ase.utils import ordinal
 from thunder_ase.utils.shell_dict import SHELL_PRIMARY_NUMS, SHELL_NUM, SHELL_NAME
 from thunder_ase.utils.ANO_DK3_GBS import ANO_DK3_GBS as GBS
 from ase.data import chemical_symbols
-
+from ase.units import Bohr
 
 # read wf file
 def read_wf(filename):
@@ -60,14 +61,35 @@ def read_info(filename='Fdata/info.dat'):
     return result_dict
 
 
-# gaussian function
+def norm_c(a, shell=0):
+    # normalization constant for pure Gaussian basis functions
+    # see https://iodata.readthedocs.io/en/latest/basis.html
+    norm = (2 * a / np.pi) ** 0.75  # s orbital
+    if shell == 1:  # p orbital
+        norm = norm * 2 * np.sqrt(a)
+    elif shell == 2:  # d orbital
+        norm = norm * 4 * a / np.sqrt(3)
+    elif shell > 2:
+        raise NotImplementedError
+    return norm
+
+
+def dnorm_c(a, shell=0):
+    # derivative of constant part of normalization constant
+    dnorm = (2 * a / np.pi) ** (-0.25) * (2 / np.pi)  # s orbital
+    if shell == 1:  # p orbital
+        dnorm = dnorm * 2 * np.sqrt(a) + norm_c(a, 0) * 2 / np.sqrt(a)
+    elif shell == 2:  # d orbital
+        dnorm = dnorm * 4 * a / np.sqrt(3) + norm_c(a, 0) * 4 / np.sqrt(3)
+    elif shell > 2:
+        raise NotImplementedError
+    return dnorm
+
+
 def gaussian(r, l=0, A=np.array([1.0]), a=np.array([0.1])):
-    if l == 0:
-        f = np.sum([Ai * np.exp(-ai * (r ** 2))
-                    for Ai, ai in zip(A, a)], axis=0)
-    else:
-        f = np.sum([Ai * (r ** l) * np.exp(-ai * (r ** 2))
-                    for Ai, ai in zip(A, a)], axis=0)
+    # gaussian function
+    f = np.sum([Ai * (r ** l) * np.exp(-ai * (r ** 2)) * norm_c(ai, l)
+                for Ai, ai in zip(A, a)], axis=0)
     return f
 
 
@@ -79,7 +101,7 @@ def loss_function(x, *args):
     l, r, Y = args
     if r.shape != Y.shape:
         raise ValueError('Shapes for args[1] and args[2] are not equal!')
-    # loss = np.abs(Y - gaussian(r, l, A, alpha)).sum()
+
     loss = np.mean((gaussian(r, l, A, alpha) - Y) ** 2)
     return loss
 
@@ -91,14 +113,9 @@ def loss_jac(x, *args):
     l, r, Y = args
     if r.shape != Y.shape:
         raise ValueError('Shapes for args[1] and args[2] are not equal!')
-    if l == 0:
-        d_alpha = np.asarray([Ai * (-1) * (r ** 2) * np.exp(-ai * (r ** 2)) * ai * np.log(10)
-                              for Ai, ai in zip(A, alpha)])
-        d_A = np.asarray([np.exp(-ai * (r ** 2)) for ai in alpha])
-    else:
-        d_alpha = np.asarray([Ai * (r ** l) * (-1) * (r ** 2) * np.exp(-ai * (r ** 2)) * ai * np.log(10)
-                              for Ai, ai in zip(A, alpha)])
-        d_A = np.asarray([(r ** l) * np.exp(-ai * (r ** 2)) for ai in alpha])
+    d_alpha = np.asarray([Ai * (r ** l) * np.exp(-ai * (r ** 2)) * ai * np.log(10) *
+                          (dnorm_c(ai, l) - r ** 2 * norm_c(ai, l)) for Ai, ai in zip(A, alpha)])
+    d_A = np.asarray([(r ** l) * np.exp(-ai * (r ** 2)) * norm_c(ai, l) for ai in alpha])
     der = np.concatenate([d_alpha, d_A])
     jac = 2 * np.mean((gaussian(r, l, A, alpha) - Y) * der, axis=1)
     return jac
@@ -134,7 +151,7 @@ def fit_wf_from_random(data, l=0, tol=1e-5, Nzeta0=3, Nzeta_max=10, Niter=3, bnd
     print("Fitting parameters: shell = {}, Nzeta0 = {}, Nzeta_max = {}, Ntry = {}, tol = {}"
           .format(l, Nzeta0, Nzeta_max, Niter, tol))
 
-    for nz in range(Nzeta0, Nzeta_max+1):
+    for nz in range(Nzeta0, Nzeta_max + 1):
         if bnds is None:
             bnds_lb = [-1.5] * nz + [-1.0] * nz
             bnds_ub = [4.0] * nz + [1.0] * nz
@@ -142,7 +159,7 @@ def fit_wf_from_random(data, l=0, tol=1e-5, Nzeta0=3, Nzeta_max=10, Niter=3, bnd
         else:
             bounds = bnds
         for itry in range(Niter):
-            print("::: The {} try for Nzeta = {} ...".format(ordinal(itry+1), nz))
+            print("::: The {} try for Nzeta = {} ...".format(ordinal(itry + 1), nz))
             init_alpha = np.random.random(nz) * 3.5 - 1.0  # -1.0 ~ 2.5
             init_coeff = np.random.random(nz) * 0.5 + 0.5  # 0.5 ~ 1.0
             init_guess = np.concatenate([init_alpha, init_coeff])
@@ -213,15 +230,6 @@ def get_initial_gbs_guess(element_num, primary_num, shell_name):
     raise NotImplementedError
 
 
-def get_primary_number(number, shell, is_excited):
-    # TODO: this is a dirty way to get primary number. It depends on same shell configuration.
-    # The best way is write primary number in info.dat or wf.dat @JamesLewis .
-    n = SHELL_PRIMARY_NUMS[number][shell]
-    if is_excited == '1':
-        n += 1
-    return n
-
-
 def expand_data(wf_data):
     """
     Expand the cutoff to current_cutoff + 3.0 angstrom.
@@ -233,7 +241,7 @@ def expand_data(wf_data):
     r_max = r.max()
     dr = r_max / len(r)
     r_plus = 3.0
-    r_extend = np.arange(r_max+dr, r_max+r_plus, dr)
+    r_extend = np.arange(r_max + dr, r_max + r_plus, dr)
     new_r = np.concatenate([r, r_extend])
     new_y = np.concatenate([y, np.zeros(len(r_extend))])
 
@@ -263,23 +271,26 @@ def fit_gaussian(prog='fit_gaussians',
             print("{} doesn't exist!".format(input_name))
             raise FileNotFoundError
         wf_data = read_wf(input_name).T
+
+        coeff_angular = Bohr**1.5
         # normalize wf_data for different l
         if shell == 0:
-            coeff_angular = 1.0 / np.sqrt(4.0 * np.pi)
+            coeff_angular = coeff_angular / np.sqrt(4.0 * np.pi)
         elif shell == 1:
-            coeff_angular = np.sqrt(3.0 / (4.0 * np.pi))
+            coeff_angular = coeff_angular * np.sqrt(3.0 / (4.0 * np.pi))
         elif shell == 2:
-            coeff_angular = np.sqrt(15.0 / (4.0 * np.pi))
+            coeff_angular = coeff_angular * np.sqrt(15.0 / (4.0 * np.pi))
         else:
-            coeff_angular = 1.0
+            NotImplementedError
+
         wf_data[1] = wf_data[1] * coeff_angular
         wf_data = expand_data(wf_data)
         # fitting from random
         Ae, ae, error = fit_wf_from_random(data=wf_data, l=shell,
-                                                  tol=args.tolerance,
-                                                  Nzeta_max=args.nzeta_max,
-                                                  Nzeta0=args.nzeta0,
-                                                  Niter=args.ntry)
+                                           tol=args.tolerance,
+                                           Nzeta_max=args.nzeta_max,
+                                           Nzeta0=args.nzeta0,
+                                           Niter=args.ntry)
 
         if args.plot:
             output_fig = "{:03d}.wf-{}{}-fitting.png".format(element_number, shell_name, is_excited)
@@ -288,8 +299,7 @@ def fit_gaussian(prog='fit_gaussians',
         output = "{:03d}.wf-{}{}.gbs".format(element_number, shell_name, is_excited)
         with open(output, 'w') as f:
             for A, a in zip(Ae, ae):
-                A_norm = A
-                f.write("{: .8E}  {: .8E}\n".format(a, A_norm))  # order is alpha, co_effi
+                f.write("{: .8E}  {: .8E}\n".format(a, A))  # order is alpha, co_effi
 
 
 def read_gaussian(element_number, shell, is_excited, Fdata_path=None):
