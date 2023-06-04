@@ -273,13 +273,13 @@ def fit_gaussian(prog='fit_gaussians',
         wf_data = read_wf(input_name).T
 
         coeff_angular = Bohr**1.5
-        # normalize wf_data for different l
+        # normalize wf_data for different l: sqrt((2*l+1) / (4*pi))
         if shell == 0:
-            coeff_angular = coeff_angular / np.sqrt(4.0 * np.pi)
+            coeff_angular = coeff_angular * np.sqrt(1.0 / (4.0 * np.pi))
         elif shell == 1:
             coeff_angular = coeff_angular * np.sqrt(3.0 / (4.0 * np.pi))
         elif shell == 2:
-            coeff_angular = coeff_angular * np.sqrt(15.0 / (4.0 * np.pi))
+            coeff_angular = coeff_angular * np.sqrt(5.0 / (4.0 * np.pi))
         else:
             NotImplementedError
 

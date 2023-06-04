@@ -183,13 +183,13 @@ def reorder_cdcoeffs(coeff_list, shell_types):
                 coeff_list[idx_curr],
                 coeff_list[idx_curr+1]
             ]
-        elif st == -2:  # pure d orbital
+        elif st == -2:  # pure d orbital. The scale factor, see fireball/b.FUNCTIONS/clm.f90 and Ylm.f90
             new_coeff_list += [
-                coeff_list[idx_curr+2],
-                coeff_list[idx_curr+3],
-                coeff_list[idx_curr+1],
-                coeff_list[idx_curr+4],
-                coeff_list[idx_curr]
+                coeff_list[idx_curr+2],  # D0
+                coeff_list[idx_curr+3],  # D+1
+                coeff_list[idx_curr+1],  # D-1
+                coeff_list[idx_curr+4],  # D+2
+                coeff_list[idx_curr+0],  # D-2
             ]
         else:
             NotImplementedError
