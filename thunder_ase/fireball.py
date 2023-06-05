@@ -19,7 +19,7 @@ from ase.dft.kpoints import BandPath
 from thunder_ase.utils.mwfn import MWFN_FORMAT, MWFN_DEFAULT, MWFN_TEMPLATE, \
     CELL_TEMPLATE, format_data, read_cdcoeffs, reorder_cdcoeffs
 from thunder_ase.utils.basis_set import read_info, read_gaussian
-from thunder_ase.utils.shell_dict import SHELL_NUM, SHELL_NAME, SHELL_PRIMARY_NUMS, SHELL_PRIMITIVE
+from thunder_ase.utils.shell_dict import SHELL_PRIMARY_NUMS, SHELL_PRIMITIVE
 
 
 def get_kpts(atoms, size=None, offset=None, reduced=False, **kwargs):
@@ -134,12 +134,12 @@ xsfoptions_params = {
 }
 
 calc_params = {
-    'kpt_size': {'type': (list, np.array), 'name': 'kpt_size', 'default': [1, 1, 1]},
-    'kpt_offset': {'type': (list, np.array), 'name': 'kpt_offset', 'default': [0., 0., 0.]},
+    'kpt_size': {'type': (list, np.array), 'name': 'kpt_size', 'default': None},
+    'kpt_offset': {'type': (list, np.array), 'name': 'kpt_offset', 'default': None},
     'kpt_interval': {'type': (list, np.array, float, int), 'name': 'kpt_interval', 'default': None},
     'kpt_path': {'type': (BandPath, str, list, np.array), 'name': 'kpt_path', 'default': None},
-    'nkpt': {'type': (int,), 'name': 'nkpt', 'default': None},
-    # number of kpoints on path, use it if kpt_path is string
+    'nkpt': {'type': (int,), 'name': 'nkpt', 'default': None},  # n kpoints on path. Used if kpt_path is string.
+    'kpt_reduced': {'type': (bool,), 'name': 'kpt_reduced', 'default': False},
 }
 
 fireball_params = options_params | output_params | xsfoptions_params | calc_params
@@ -176,11 +176,12 @@ class GenerateFireballInput:
         self.options_params = {}
         self.xsfoptions_params = {}
 
-        self.kpt_size = None
-        self.kpt_interval = None
-        self.kpt_offset = None
-        self.kpt_path = None
-        self.nkpt = None
+        self.kpt_size = fireball_params['kpt_size']['default']
+        self.kpt_interval = fireball_params['kpt_interval']['default']
+        self.kpt_offset = fireball_params['kpt_offset']['default']
+        self.kpt_path = fireball_params['kpt_path']['default']
+        self.nkpt = fireball_params['nkpt']['default']
+        self.kpt_reduced = fireball_params['kpt_reduced']['default']
         self._kpoints = None
 
         self.check_kwargs(kwargs)
@@ -279,6 +280,8 @@ class GenerateFireballInput:
                 self.kpt_path = v
             elif k == 'nkpt':
                 self.nkpt = v
+            elif k == 'kpt_reduced':
+                self.kpt_reduced = v
         return
 
     def write_options(self):
@@ -338,7 +341,7 @@ class GenerateFireballInput:
         self.write_options()
         self.write_atoms(pbc=self.atoms.pbc)
         if np.any(self.atoms.pbc):
-            self.write_kpts()
+            self.write_kpts(reduced=self.kpt_reduced)
 
     def read_options(self, input_file='structures.inp', read_atoms=False):
         # read structures.inp, get names for atoms and kpoints
@@ -484,7 +487,7 @@ class Fireball(GenerateFireballInput, Calculator):
         return errorcode
 
     def read_results(self):
-        output = self.sname + ".log.json"
+        output = self.sname + ".json"
         result = jsonio.read_json(output)
         self.results = result['fireball'][-1]
 
