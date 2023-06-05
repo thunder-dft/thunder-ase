@@ -42,11 +42,7 @@ def get_kpts(atoms, size=None, offset=None, reduced=False, **kwargs):
     kpoints = kpoint_convert(cell_cv=atoms.cell, skpts_kc=kpoints)  # convert from scaled and cartesian coordinates
     nkpt = len(kpoints)
     if not reduced or nkpt <= 1:
-        kpoints_weight = []
-        for k in kpoints:
-            kx, ky, kz = k
-            kpoints_weight.append([kx, ky, kz, 1.0 / nkpt])
-        return kpoints_weight
+        return [[kx, ky, kz, 1.0 / nkpt] for kx, ky, kz in kpoints]
 
     if 'symprec' in kwargs:
         symprec = kwargs['symprec']
@@ -57,11 +53,7 @@ def get_kpts(atoms, size=None, offset=None, reduced=False, **kwargs):
         sg = ase.spacegroup.get_spacegroup(atoms, symprec=symprec)
     except RuntimeError:
         print("Didn't find symmetry. No reducing is needed.")
-        kpoints_weight = []
-        for k in kpoints:
-            kx, ky, kz = k
-            kpoints_weight.append([kx, ky, kz, 1.0 / nkpt])
-        return kpoints_weight
+        return [[kx, ky, kz, 1.0 / nkpt] for kx, ky, kz in kpoints]
 
     kpts_extend = []  # all the symmetry points for each kpts
     for kpt in kpoints:
