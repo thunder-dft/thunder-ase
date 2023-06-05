@@ -25,8 +25,8 @@ The interface of ASE for FIREBALL.
   * v0.1.3: read fireball input to construct calculator
 * v0.2: band structure calculation.
   * v0.2.1: DOS calculation.
-* v0.3: fit basis to gaussian, write orbitals to mwfn.
-  * v0.3.1: interface to multiwfn.
+* v0.3.1: fit basis to gaussian, write orbitals to mwfn.
+  * v0.3.2: interface to multiwfn.
 * v0.4: MD calculation.
 * v0.5: Fdata management.
 * v0.6: interactive running.
