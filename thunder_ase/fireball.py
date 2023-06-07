@@ -296,6 +296,12 @@ class GenerateFireballInput:
             f.write("&END\n")
 
     def write_atoms(self, atoms=None, pbc=None):
+        """
+        TODO: for non-PBC system, set cell to [0.000] * 9
+        :param atoms:
+        :param pbc:
+        :return:
+        """
         if atoms is not None:
             self.atoms = atoms.copy()
 

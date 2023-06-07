@@ -1,11 +1,18 @@
-from ase.build import bulk
+from ase.build import molecule
+import ase
+from ase.visualize import view
 
 from thunder_ase.fireball import Fireball
 
-atoms = bulk('Si', 'diamond', a=5.459)
-Fdata_path = '/home/ren/Programs/Github/thunder-ase/data/Fdata-McWEDA-0.15-3SN.Sis4.8p5.35'
-kwargs = {'kpt_size': [3, 3, 3],
-          'iwriteout_charges': 1,  # Writing out the charges.
+#atoms = molecule('C2H2')
+#del(atoms[2:])
+atoms = ase.Atoms('Fe2', positions=[[0, 0, 0], [0, 0, 2.5]])
+Fdata_path = '/home/ren/Programs/Github/thunder-ase/data/Fdata-McWEDA-0.15-3SN.Hs3.75.Cs4.00p4.45.Os3.35p3.80-3SNP.Fes5.30p5.30d4.80'
+
+#atoms = ase.Atoms('Si')
+#Fdata_path = '/home/ren/Programs/Github/thunder-ase/data/Fdata-McWEDA-0.15-3SN.Sis4.8p5.35'
+
+kwargs = {'iwriteout_charges': 1,  # Writing out the charges.
           'iwriteout_cdcoeffs': 1,  # Writing out orbital info.
           'taurelax': 5.0,
           'efermi_T': 200.0,

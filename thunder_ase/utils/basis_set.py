@@ -95,6 +95,12 @@ def gaussian(r, l=0, A=np.array([1.0]), a=np.array([0.1])):
 
 # loss function
 def loss_function(x, *args):
+    """
+    TODO: use sum( (4 * pi * r**2 * (wf**2 - wf0**2))**2 ) as loss function
+    :param x:
+    :param args:
+    :return:
+    """
     len_x = int(len(x) / 2)
     alpha = 10 ** x[0:len_x]
     A = np.asarray(x[len_x:])
