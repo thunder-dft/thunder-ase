@@ -95,16 +95,16 @@ options_params = {
     'efermi_t': {'type': (int, float), 'name': 'efermi_T', 'default': 100.0},
     'dt': {'type': (int, float), 'name': 'dt', 'default': 0.25},  # fs
     'iensemble': {'type': (int,), 'name': 'iensemble', 'default': 0},
-    'iconstraint_rcm': {'type': (int,), 'name': 'iconstraint_rcm', 'default': 1},  # shift molecule to COM
-    'iconstraint_vcm': {'type': (int,), 'name': 'iconstraint_vcm', 'default': 1},
+    'iconstraint_rcm': {'type': (int,), 'name': 'iconstraint_rcm', 'default': 1},  # shift molecule to COM or not
+    'iconstraint_vcm': {'type': (int,), 'name': 'iconstraint_vcm', 'default': 1},  # whether keep COM fixed during md
     'iconstraint_l': {'type': (int,), 'name': 'iconstraint_L', 'default': 0},
     'iconstraint_ke': {'type': (int,), 'name': 'iconstraint_KE', 'default': 1},
     'ifix_neighbors': {'type': (int,), 'name': 'ifix_neighbors', 'default': 0},
     'ifix_charges': {'type': (int,), 'name': 'ifix_CHARGES', 'default': 1},
     'max_scf_iterations_set': {'type': (int,), 'name': 'max_scf_iterations_set', 'default': 50},
     'scf_tolerance_set': {'type': (int, float), 'name': 'scf_tolerance_set', 'default': 0.00000001},
-    'beta_set': {'type': (int, float), 'name': 'beta_set', 'default': 0.08},
-    'ecut_set': {'type': (int, float), 'name': 'Ecut_set', 'default': 200.0},
+    'beta_set': {'type': (int, float), 'name': 'beta_set', 'default': 0.08},  # mix factor
+    'ecut_set': {'type': (int, float), 'name': 'Ecut_set', 'default': 200.0},  # control mesh grid number
 }
 
 output_params = {
@@ -488,7 +488,25 @@ class Fireball(GenerateFireballInput, Calculator):
     def read_results(self):
         output = self.sname + ".json"
         result = jsonio.read_json(output)
+        if 'charges' in result['fireball'][-1]:
+            shell_charges = result['fireball'][-1]['charges']
+            result['fireball'][-1]['shell_charges'] = shell_charges
         self.results = result['fireball'][-1]
+
+    def get_charges(self, atoms=None):
+        if self.results is None:
+            try:
+                self.read_results()
+            except AttributeError:
+                return None
+        shell_charges = self.results['fireball'][-1]['shell_charges']
+        sum_charges = [sum(isc) for isc in shell_charges]
+        if atoms is None:
+            atoms = self.atoms
+        ref_charges = [sum(self.shell_info[s]['occupation']) for s in atoms.symbols]
+        charges = [ref-sc for sc, ref in zip(sum_charges, ref_charges)]
+        self.results['charges'] = charges
+        return charges
 
     def get_forces(self, atoms=None):
         forces = self.get_property('forces', atoms)
@@ -618,7 +636,7 @@ class Fireball(GenerateFireballInput, Calculator):
 
         # atom information
         mwfn_dict['ncenter'] = MWFN_FORMAT['ncenter'].format(len(self.atoms))
-        atoms_coord = [MWFN_FORMAT['atoms_coord'].format(idx+1,
+        atoms_coord = [MWFN_FORMAT['atoms_coord'].format(idx + 1,
                                                          iatom.symbol,
                                                          iatom.number,
                                                          self.get_valence_charge(idx),
@@ -654,7 +672,7 @@ class Fireball(GenerateFireballInput, Calculator):
         contraction_coefficients = []
         for idx, symbol in enumerate(self.atoms.symbols):
             ishells = self.shell_info[symbol]['shells']
-            shell_centers += [idx+1] * len(ishells)
+            shell_centers += [idx + 1] * len(ishells)
             shell_types += ishells
             excited_label = self.shell_info[symbol]['excited']
             for shell, is_excited in zip(ishells, excited_label):
@@ -662,10 +680,10 @@ class Fireball(GenerateFireballInput, Calculator):
                 shell_contraction_degress.append(gbs['degree'])
                 primitive_exponents += gbs['alpha'].tolist()
                 contraction_coefficients += gbs['coefficient'].tolist()
-        nbasis = sum([shell*2+1 for shell in shell_types])
+        nbasis = sum([shell * 2 + 1 for shell in shell_types])
         nshell = len(shell_types)
         nprimshell = len(primitive_exponents)
-        nprims = sum([SHELL_PRIMITIVE[st]*degree
+        nprims = sum([SHELL_PRIMITIVE[st] * degree
                       for st, degree in zip(shell_types, shell_contraction_degress)])
         shell_types = [((i < 2) * 2 - 1) * i for i in shell_types]  # if i >= 2, use negative value
 
@@ -681,7 +699,7 @@ class Fireball(GenerateFireballInput, Calculator):
         mwfn_dict['primitive_exponents'] = format_data('primitive_exponents', primitive_exponents)
         mwfn_dict['contraction_coefficients'] = format_data('contraction_coefficients', contraction_coefficients)
 
-        cdcoeffs = read_cdcoeffs(self.sname+'.cdcoeffs-mwfn')[kpoint]
+        cdcoeffs = read_cdcoeffs(self.sname + '.cdcoeffs-mwfn')[kpoint]
         orbital_coeffs = []
         for orbital in cdcoeffs:
             info = ''.join(orbital['info'])
