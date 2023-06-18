@@ -86,6 +86,7 @@ def get_kpts(atoms, size=None, offset=None, reduced=False, **kwargs):
 options_params = {
     'nstepi': {'type': (int,), 'name': 'nstepi', 'default': 1},
     'nstepf': {'type': (int,), 'name': 'nstepf', 'default': 1},
+    'qstate': {'type': (int,), 'name': 'qstate', 'default': 0},  # Extra electron. +1 mean adding 1 electron.
     'iquench': {'type': (int,), 'name': 'iquench', 'default': 0},
     't_initial': {'type': (int, float), 'name': 'T_initial', 'default': 300.0},
     't_final': {'type': (int, float), 'name': 'T_final', 'default': 0.0},
@@ -94,7 +95,7 @@ options_params = {
     'efermi_t': {'type': (int, float), 'name': 'efermi_T', 'default': 100.0},
     'dt': {'type': (int, float), 'name': 'dt', 'default': 0.25},  # fs
     'iensemble': {'type': (int,), 'name': 'iensemble', 'default': 0},
-    'iconstraint_rcm': {'type': (int,), 'name': 'iconstraint_rcm', 'default': 1},
+    'iconstraint_rcm': {'type': (int,), 'name': 'iconstraint_rcm', 'default': 1},  # shift molecule to COM
     'iconstraint_vcm': {'type': (int,), 'name': 'iconstraint_vcm', 'default': 1},
     'iconstraint_l': {'type': (int,), 'name': 'iconstraint_L', 'default': 0},
     'iconstraint_ke': {'type': (int,), 'name': 'iconstraint_KE', 'default': 1},
