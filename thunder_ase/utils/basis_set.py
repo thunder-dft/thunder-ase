@@ -7,7 +7,6 @@ import matplotlib.pyplot as plt
 
 from thunder_ase.utils import ordinal
 from thunder_ase.utils.shell_dict import SHELL_NUM, SHELL_NAME
-from thunder_ase.utils.ANO_DK3_GBS import ANO_DK3_GBS as GBS
 from ase.data import chemical_symbols
 from ase.units import Bohr
 

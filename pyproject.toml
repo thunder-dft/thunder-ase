@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "thunder-ase"
-version = "0.3.1"
+version = "0.4"
 authors = [
   { name="PJ Ren", email="openrpj@gmail.com" },
 ]
@@ -21,7 +21,7 @@ classifiers = [
 fit-gaussians = "thunder_ase.utils:fit_gaussian"
 
 [tool.setuptools]
-packages=['thunder_ase']
+packages=['thunder_ase', 'thunder_ase.utils']
 
 [project.urls]
 "Homepage" = "https://github.com/thunder-dft/thunder-ase"
