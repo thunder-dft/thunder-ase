@@ -3,11 +3,11 @@
 # Thunder ASE
 
 ### Description
-The interface of ASE for FIREBALL.  
+The interface of ASE for FIREBALL.
 
-[FIREBALL](https://sites.google.com/site/fireballofficialsite/) is a local-orbital ab-initio tight binding implementation of  molecular dynamics. The method allows for the simulation and calculation of very large supercells of thousands of atoms or very long MD  simulations with ease.
+[FIREBALL](https://fireball-dft.org) is an open source and high efficiency DFT software based on local-orbital ab-initio method, allows for the simulation very large supercells of thousands of atoms. [ASE](https://wiki.fysik.dtu.dk/ase/index.html) is a popular python package for atomic structure modeling. ASE provide interfaces with many QM and MM software. This `thunder-ase` package is not only the ASE interface for FIREBALL, but also provides many other useful functions. 
 
-[ASE](https://wiki.fysik.dtu.dk/ase/index.html) is a popular python package for atomic structure modeling. ASE provide interfaces with many QM and MM software. This package is the interface for FIREBALL. 
+![thunder-ase-framework](./Docs/img/thunder-ase-framework.jpeg)
 
 ### Installation
 
