@@ -88,6 +88,8 @@ options_params = {
     'nstepf': {'type': (int,), 'name': 'nstepf', 'default': 1},
     'qstate': {'type': (int,), 'name': 'qstate', 'default': 0},  # Extra electron. +1 mean adding 1 electron.
     'iquench': {'type': (int,), 'name': 'iquench', 'default': 0},
+    # optimization algorithm, 0: MD, -1: hard quench at KE achieve maximum, -3: power (force * velocity) quench,
+    # positive number N: quench every N step
     't_initial': {'type': (int, float), 'name': 'T_initial', 'default': 300.0},
     't_final': {'type': (int, float), 'name': 'T_final', 'default': 0.0},
     't_want': {'type': (int, float), 'name': 'T_want', 'default': 300.0},
@@ -102,7 +104,7 @@ options_params = {
     'ifix_neighbors': {'type': (int,), 'name': 'ifix_neighbors', 'default': 0},
     'ifix_charges': {'type': (int,), 'name': 'ifix_CHARGES', 'default': 1},
     'max_scf_iterations_set': {'type': (int,), 'name': 'max_scf_iterations_set', 'default': 50},
-    'scf_tolerance_set': {'type': (int, float), 'name': 'scf_tolerance_set', 'default': 0.00000001},
+    'scf_tolerance_set': {'type': (int, float), 'name': 'scf_tolerance_set', 'default': 0.000001},
     'beta_set': {'type': (int, float), 'name': 'beta_set', 'default': 0.08},  # mix factor
     'ecut_set': {'type': (int, float), 'name': 'Ecut_set', 'default': 200.0},  # control mesh grid number
 }
