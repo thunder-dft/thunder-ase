@@ -86,7 +86,7 @@ def get_kpts(atoms, size=None, offset=None, reduced=False, **kwargs):
 options_params = {
     'nstepi': {'type': (int,), 'name': 'nstepi', 'default': 1},
     'nstepf': {'type': (int,), 'name': 'nstepf', 'default': 1},
-    'qstate': {'type': (int,), 'name': 'qstate', 'default': 0},  # Extra electron. +1 mean adding 1 electron.
+    'qstate': {'type': (int, float), 'name': 'qstate', 'default': 0},  # Extra electron. +1 mean adding 1 electron.
     'iquench': {'type': (int,), 'name': 'iquench', 'default': 0},
     # optimization algorithm, 0: MD, -1: hard quench at KE achieve maximum, -3: power (force * velocity) quench,
     # positive number N: quench every N step
@@ -257,7 +257,8 @@ class GenerateFireballInput:
                 print("The option {} not supported!".format(k))
                 raise KeyError
             if type(v) not in fireball_params[k]['type']:
-                print("The type of {} should be {}".format(k, ' or '.join(fireball_params[k]['type'])))
+                print("The type of {} should be {}, but type {} is provided!".format(k, ' or '.join(
+                    [i.__name__ for i in fireball_params[k]['type']]), type(v).__name__))
                 raise TypeError
             if k in output_params:
                 self.output_params[k] = v
@@ -493,6 +494,8 @@ class Fireball(GenerateFireballInput, Calculator):
         if 'charges' in result['fireball'][-1]:
             shell_charges = result['fireball'][-1]['charges']
             result['fireball'][-1]['shell_charges'] = shell_charges
+            del(result['fireball'][-1]['charges'])
+
         self.results = result['fireball'][-1]
 
     def get_charges(self, atoms=None):
@@ -501,12 +504,16 @@ class Fireball(GenerateFireballInput, Calculator):
                 self.read_results()
             except AttributeError:
                 return None
-        shell_charges = self.results['fireball'][-1]['shell_charges']
+        else:
+            if 'charges' in self.results:
+                return self.results['charges']
+
+        shell_charges = self.results['shell_charges']
         sum_charges = [sum(isc) for isc in shell_charges]
         if atoms is None:
             atoms = self.atoms
         ref_charges = [sum(self.shell_info[s]['occupation']) for s in atoms.symbols]
-        charges = [ref-sc for sc, ref in zip(sum_charges, ref_charges)]
+        charges = [ref - sc for sc, ref in zip(sum_charges, ref_charges)]
         self.results['charges'] = charges
         return charges
 
@@ -629,7 +636,7 @@ class Fireball(GenerateFireballInput, Calculator):
         shell_info = self.shell_info[isymbol]
         return sum(shell_info['occupation'])
 
-    def write_mwfn(self, kpoint=0):
+    def write_mwfn(self, kpoint=0, filename=None):
         mwfn_dict = MWFN_DEFAULT.copy()
         # Initialize default data format
         for k, v in mwfn_dict.items():
@@ -659,7 +666,7 @@ class Fireball(GenerateFireballInput, Calculator):
             mwfn_dict['cell_info'] = ''
 
         # electron for alpha and beta
-        tot_elec = sum([self.get_valence_charge(i) for i in range(len(self.atoms))])
+        tot_elec = sum([self.get_valence_charge(i) for i in range(len(self.atoms))]) - sum(self.get_charges())
         naelec = 0.5 * tot_elec
         nbelec = 0.5 * tot_elec
         mwfn_dict['naelec'] = MWFN_FORMAT['naelec'].format(naelec)
@@ -715,7 +722,9 @@ class Fireball(GenerateFireballInput, Calculator):
         # TODO: read orbital info, append to the content
 
         # write out
-        with open(self.sname + '.mwfn', 'w') as f:
+        if filename is None:
+            filename = self.sname + '.mwfn'
+        with open(filename, 'w') as f:
             f.write(content)
 
 

@@ -49,7 +49,7 @@ print("The Fermi Level is {:.3f} eV.".format(efermi))
 
 #### Basic Parameters of FIREBALL
 
-* `qstate` : The charge state of the system. Default is 0.
+* `qstate` : The charge state of the system. Default is 0. Positive values mean add extra electrons, negatives mean remove electrons.
 * `efermi_t`: Smearing temperature at Fermi level. Default is 100.0, which is about 0.0086 eV. For metal system, larger value is recommended.
 * `max_scf_iterations_set`: Scf steps maximum. Default is 50.
 * `scf_tolerance_set`: Scf tolerance of charge. Default is 1.0E-6. Smaller value is recommended for higher precision, e.g. 1.0E-8.

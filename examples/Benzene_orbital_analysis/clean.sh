@@ -9,7 +9,8 @@ rm *.CHARGES \
    structures.inp \
    structures.output \
    0*.eigen \
-   0*.log.json \
+   0*.json \
    output.log \
    structures.options \
-   structures.xsfoptions 
+   structures.xsfoptions \
+   WARNINGS
