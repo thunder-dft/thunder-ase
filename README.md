@@ -26,7 +26,7 @@ from thunder_ase.fireball import Fireball
 from ase.build import molecule
 
 atoms = molecule('C6H6')
-Fdata_path = '../data/Fdata-McWEDA-0.15-3SN.Hs3.75.Cs4.00p4.45.Os3.35p3.80-3SNP.Fes5.30p5.30d4.80'
+Fdata_path = 'YOUR_FDATA_PATH'
 
 kwargs = {'iwriteout_charges': 1,  # Writing out the charges.
           'efermi_T': 200.0,
@@ -35,7 +35,7 @@ kwargs = {'iwriteout_charges': 1,  # Writing out the charges.
           'beta_set': 0.04,
           }
 
-calc = Fireball(command='lightning.3.x', 
+calc = Fireball(command='YOUR_PATH for fireball.x', 
                 Fdata_path=Fdata_path,
                 **kwargs)
 atoms.set_calculator(calc)
