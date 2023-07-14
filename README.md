@@ -116,6 +116,6 @@ The following parameters are deprecated due to the usage of thunder-ase. In the 
   * DOS calculation.
 * v0.3: fit basis to gaussian basis set, write orbitals to mwfn.
   * interface to multiwfn.
-* v0.4: Read charge.
+* v0.4: Read charges and support charged system.
 * v0.5: interactive running.
 * v0.6: Fdata management.
