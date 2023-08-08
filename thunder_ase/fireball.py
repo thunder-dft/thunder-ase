@@ -107,6 +107,7 @@ options_params = {
     'scf_tolerance_set': {'type': (int, float), 'name': 'scf_tolerance_set', 'default': 0.000001},
     'beta_set': {'type': (int, float), 'name': 'beta_set', 'default': 0.08},  # mix factor
     'ecut_set': {'type': (int, float), 'name': 'Ecut_set', 'default': 200.0},  # control mesh grid number
+    'ipi': {'type': (int,), 'name': 'ipi', 'default': 0},  # open I-PI socket
 }
 
 output_params = {

@@ -55,6 +55,7 @@ print("The Fermi Level is {:.3f} eV.".format(efermi))
 * `scf_tolerance_set`: Scf tolerance of charge. Default is 1.0E-6. Smaller value is recommended for higher precision, e.g. 1.0E-8.
 * `beta_set`: Broyden’s mix factor of charges. Default is 0.08.
 * `ecut_set`: To control mesh grid density. Default is 200.0.
+* `ipi`: open I-PI socket. Default is 0.
 * `iwriteout_charges`: Write out charges. Default is  0 (False).
 
 #### Basic Parameters of Thunder-ASE
