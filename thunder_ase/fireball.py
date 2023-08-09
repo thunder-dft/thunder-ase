@@ -124,10 +124,6 @@ output_params = {
     'iwriteout_ewf': {'type': (int,), 'name': 'iwriteout_ewf', 'default': 0},
 }
 
-xsfoptions_params = {
-    'rho_surface_min': {'type': (int, float), 'name': 'rho_surface_min', 'default': 0.0005},
-    'rho_surface_max': {'type': (int, float), 'name': 'rho_surface_max', 'default': 0.1},
-}
 
 calc_params = {
     'kpt_size': {'type': (list, np.array), 'name': 'kpt_size', 'default': None},
@@ -138,7 +134,7 @@ calc_params = {
     'kpt_reduced': {'type': (bool,), 'name': 'kpt_reduced', 'default': False},
 }
 
-fireball_params = options_params | output_params | xsfoptions_params | calc_params
+fireball_params = options_params | output_params | calc_params
 
 
 def get_params_from_string(s):
@@ -170,7 +166,6 @@ class GenerateFireballInput:
         self.sname = '001'
         self.output_params = {}
         self.options_params = {}
-        self.xsfoptions_params = {}
         self.Fdata_path = None
 
         self.kpt_size = fireball_params['kpt_size']['default']
@@ -266,8 +261,6 @@ class GenerateFireballInput:
                 self.output_params[k] = v
             elif k in options_params:
                 self.options_params[k] = v
-            elif k in xsfoptions_params:
-                self.xsfoptions_params[k] = v
             elif k == 'kpt_size':
                 self.kpt_size = v
             elif k == 'kpt_offset':
@@ -295,10 +288,6 @@ class GenerateFireballInput:
 
             f.write("&OPTIONS\n")
             write_params(self.options_params, f)
-            f.write("&END\n")
-
-            f.write("&XSFOPTIONS\n")
-            write_params(self.xsfoptions_params, f)
             f.write("&END\n")
 
     def write_atoms(self, atoms=None, pbc=None):
@@ -357,7 +346,7 @@ class GenerateFireballInput:
         for iline in lines[1:natoms_list + 1]:
             sname_list.append(iline.strip().strip('.inp'))
 
-        loption, loutput, lxsfoptions = False, False, False
+        loption, loutput = False, False
         for line in lines[natoms_list + 1:]:
             content = line.strip()
             if '!' in content:
@@ -370,9 +359,6 @@ class GenerateFireballInput:
                 continue
             if '&OUTPUT' in content:
                 loutput = True
-                continue
-            if "&XSFOPTIONS" in content:
-                lxsfoptions = True
                 continue
 
             if loption:
@@ -388,12 +374,6 @@ class GenerateFireballInput:
                     continue
                 k, v = get_params_from_string(content)
                 self.output_params[k] = v
-            elif lxsfoptions:
-                if '&END' in content:
-                    lxsfoptions = False
-                    continue
-                k, v = get_params_from_string(content)
-                self.xsfoptions_params[k] = v
 
         if read_atoms:
             return sname_list
