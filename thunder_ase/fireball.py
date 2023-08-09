@@ -156,7 +156,10 @@ def get_params_from_string(s):
 def write_params(dct, f):
     for k, v in dct.items():
         kname = fireball_params[k]['name']
-        f.write("{} = {}\n".format(kname, v))
+        if str in fireball_params[kname]['type']:
+            f.write("{} = '{}'\n".format(kname, v))
+        else:
+            f.write("{} = {}\n".format(kname, v))
 
 
 class GenerateFireballInput:
