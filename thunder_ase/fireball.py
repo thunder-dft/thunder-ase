@@ -109,7 +109,7 @@ options_params = {
     'ecut_set': {'type': (int, float), 'name': 'Ecut_set', 'default': 200.0},  # control mesh grid number
     'ipi': {'type': (int,), 'name': 'ipi', 'default': 0},  # open I-PI socket
     'inet': {'type': (int,), 'name': 'inet', 'default': 0},  # socket protocol, 0: unixsocket, 1: port
-    'host': {'type': (str,), 'name': 'host', 'default': 'thunder-ase'},
+    'host': {'type': (str,), 'name': 'host', 'default': 'thunder-ase'},  # name for unixsocket
 }
 
 output_params = {
