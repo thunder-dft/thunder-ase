@@ -215,26 +215,6 @@ def plot_fitting(data, l, Ae, ae, output=None):
         plt.show()
 
 
-def get_initial_gbs_guess(element_num, primary_num, shell_name):
-    # loop GBS, find minimum element contain excited_pn and shell_name
-    pn = str(primary_num)
-    for n_element in chemical_symbols[element_num:]:
-        if n_element not in GBS:
-            continue
-        if pn not in GBS[n_element]:
-            continue
-        if shell_name in GBS[n_element][pn]:
-            gauss = GBS[n_element][pn][shell_name]
-            if n_element != chemical_symbols[element_num]:
-                print("Initial guess for {} {}{} is from {}!".format(
-                    chemical_symbols[element_num], pn, shell_name, n_element))
-            return np.concatenate(np.asarray(gauss).T)
-
-    print("No initial guess for {} {}{}!".format(chemical_symbols[element_num], pn, shell_name))
-    print("Maybe too large element number!")
-    raise NotImplementedError
-
-
 def expand_data(wf_data):
     """
     Expand the cutoff to current_cutoff + 3.0 angstrom.
@@ -261,10 +241,10 @@ def fit_gaussian(prog='fit_gaussians',
         description=description, )
     parser.add_argument('input_name', nargs='+', help='Fireball wave function file.')
     parser.add_argument('-p', '--plot', action='store_true')
-    parser.add_argument('-t', '--tolerance', type=float, dest='tolerance', default=1e-4)
+    parser.add_argument('-t', '--tolerance', type=float, dest='tolerance', default=1e-5)
     parser.add_argument('-Nz', '--Nzeta_max', type=int, dest='nzeta_max', default=10)
-    parser.add_argument('-Nz0', '--Nzeta0', type=int, dest='nzeta0', default=4)
-    parser.add_argument('-Nt', '--Ntry', type=int, dest='ntry', default=3)
+    parser.add_argument('-Nz0', '--Nzeta0', type=int, dest='nzeta0', default=3)
+    parser.add_argument('-Nt', '--Ntry', type=int, dest='ntry', default=4)
     args = parser.parse_args()
 
     for input_name in args.input_name:
