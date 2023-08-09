@@ -337,7 +337,7 @@ class GenerateFireballInput:
             for k in self.get_kpoints(reduced=reduced, **kwargs):
                 f.write("{:8.6f} {:8.6f} {:8.6f} {:8.6f}\n".format(*k))
 
-    def write_input(self, atoms=None, Fdata_path=None):
+    def write_input(self, atoms=None, Fdata_path=None, properties=None, system_changes=None):
         if atoms is not None:
             self.atoms = atoms.copy()
         self.write_Fdata_inp(atoms=self.atoms, Fdata_path=Fdata_path)
