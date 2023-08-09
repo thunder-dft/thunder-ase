@@ -171,6 +171,7 @@ class GenerateFireballInput:
         self.output_params = {}
         self.options_params = {}
         self.xsfoptions_params = {}
+        self.Fdata_path = None
 
         self.kpt_size = fireball_params['kpt_size']['default']
         self.kpt_interval = fireball_params['kpt_interval']['default']
@@ -337,10 +338,10 @@ class GenerateFireballInput:
             for k in self.get_kpoints(reduced=reduced, **kwargs):
                 f.write("{:8.6f} {:8.6f} {:8.6f} {:8.6f}\n".format(*k))
 
-    def write_input(self, atoms=None, Fdata_path=None, properties=None, system_changes=None):
+    def write_input(self, atoms=None, properties=None, system_changes=None):
         if atoms is not None:
             self.atoms = atoms.copy()
-        self.write_Fdata_inp(atoms=self.atoms, Fdata_path=Fdata_path)
+        self.write_Fdata_inp(atoms=self.atoms, Fdata_path=self.Fdata_path)
         self.write_options()
         self.write_atoms(pbc=self.atoms.pbc)
         if np.any(self.atoms.pbc):
@@ -465,7 +466,7 @@ class Fireball(GenerateFireballInput, Calculator):
         if atoms is not None:
             self.atoms = atoms.copy()
 
-        self.write_input(Fdata_path=self.Fdata_path)
+        self.write_input()
 
         errorcode = self._run(command=self.command,
                               directory=self.directory)
