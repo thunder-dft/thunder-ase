@@ -7,7 +7,6 @@ import matplotlib.pyplot as plt
 
 from thunder_ase.utils import ordinal
 from thunder_ase.utils.shell_dict import SHELL_NUM, SHELL_NAME
-from ase.data import chemical_symbols
 from ase.units import Bohr
 
 
@@ -95,7 +94,7 @@ def gaussian(r, l=0, A=np.array([1.0]), a=np.array([0.1])):
 # loss function
 def loss_function(x, *args):
     """
-    TODO: use sum( (4 * pi * r**2 * (wf**2 - wf0**2))**2 ) as loss function
+    TODO: use sum( (4 * pi * r**2 * (wf**2 - wf0**2))**2 ) as loss function as Multiwfn?
     :param x:
     :param args:
     :return:
@@ -145,7 +144,8 @@ def fit_wf_from_random(data, l=0, tol=1e-5, Nzeta0=3, Nzeta_max=10, Niter=3, bnd
     :param data: shape = [N, 2]
     :param l: principal quantum number
     :param tol: Error tolerance
-    :param Nzeta: number of gaussian
+    :param Nzeta0: number of initial gaussian
+    :param Nzeta_max: maximum number of gaussian
     :param bnds: boundary for fitting
     :return:
     """
@@ -208,7 +208,7 @@ def plot_fitting(data, l, Ae, ae, output=None):
     ymax = Y_max + Y_range * 0.2
     plt.ylim([ymin, ymax])
     for Ai, ai in zip(Ae, ae):
-        plt.plot(R, gaussian(R, l, [Ai], [ai]))
+        plt.plot(R, gaussian(R, l, np.array([Ai]), np.array([ai])))
     if output is not None:
         plt.savefig(output)
     else:
@@ -266,7 +266,7 @@ def fit_gaussian(prog='fit_gaussians',
         elif shell == 2:
             coeff_angular = coeff_angular * np.sqrt(5.0 / (4.0 * np.pi))
         else:
-            NotImplementedError
+            raise NotImplementedError
 
         wf_data[1] = wf_data[1] * coeff_angular
         wf_data = expand_data(wf_data)
