@@ -47,6 +47,11 @@ print("The energy is {:.3f} eV.".format(e0))
 print("The Fermi Level is {:.3f} eV.".format(efermi))
 ```
 
+#### Important notes
+
+* The socket-run is highly recommended during MD simulation, it will save lots of time on reading Fdata. Related keywords: `ipi`, `inet`, `host`.
+
+
 #### Basic Parameters
 
 * `qstate` : The charge state of the system. Default is 0. Positive values mean add extra electrons, negatives mean remove electrons.
