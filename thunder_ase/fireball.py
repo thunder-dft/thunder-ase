@@ -97,9 +97,9 @@ options_params = {
     'efermi_t': {'type': (int, float), 'name': 'efermi_T', 'default': 100.0},
     'dt': {'type': (int, float), 'name': 'dt', 'default': 0.25},  # fs
     'iensemble': {'type': (int,), 'name': 'iensemble', 'default': 0},
-    'iconstraint_rcm': {'type': (int,), 'name': 'iconstraint_rcm', 'default': 1},  # shift molecule to COM or not
+    'iconstraint_rcm': {'type': (int,), 'name': 'iconstraint_rcm', 'default': 0},  # shift molecule to COM or not
     'iconstraint_vcm': {'type': (int,), 'name': 'iconstraint_vcm', 'default': 1},  # whether keep COM fixed during md
-    'iconstraint_l': {'type': (int,), 'name': 'iconstraint_L', 'default': 0},
+    'iconstraint_l': {'type': (int,), 'name': 'iconstraint_L', 'default': 1},
     'iconstraint_ke': {'type': (int,), 'name': 'iconstraint_KE', 'default': 1},
     'ifix_neighbors': {'type': (int,), 'name': 'ifix_neighbors', 'default': 0},
     'ifix_charges': {'type': (int,), 'name': 'ifix_CHARGES', 'default': 1},

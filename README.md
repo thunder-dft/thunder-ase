@@ -92,8 +92,9 @@ print("The Fermi Level is {:.3f} eV.".format(efermi))
 The following parameters are deprecated due to the usage of thunder-ase. In the future, they will be removed from FIREBALL. Most parameters are for MD simulations.
 
 * `nstepi`: Initial step number. Default is 1.
+* `iconstraint_rcm`: Shift COM to [0,0,0] before simulation. Default is 0 (False).
 * `iconstraint_vcm`: Constraining the velocities about the COM, it means whether fix  the COM during simulation. Default is 1 (True).
-* `iconstraint_l`: Angular momentum constraint of the whole system. Default is  0 (False).
+* `iconstraint_l`: Angular momentum constraint of the whole system. Default is  1 (True).
 * `iconstraint_ke`: Kinetic energy constraint of the whole system. Default is  0 (False).
 * `nstepf`: Final step number. Default is 1. `nstepf - nstepi` is the required MD steps.
 * `t_initial`: Initial temperature of MD simulation. Default is 300.0. 
