@@ -623,7 +623,7 @@ class Fireball(GenerateFireballInput, Calculator):
         shell_info = self.shell_info[isymbol]
         return sum(shell_info['occupation'])
 
-    def write_mwfn(self, kpoint=0, filename=None):
+    def write_mwfn(self, filename=None, kpoint=0):
         mwfn_dict = MWFN_DEFAULT.copy()
         # Initialize default data format
         for k, v in mwfn_dict.items():
