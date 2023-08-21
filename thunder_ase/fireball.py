@@ -1,9 +1,3 @@
-"""
-The interface of ASE for FIREBALL.
-* create input files for FIREBALL
-* run fireball calculations
-* read output
-"""
 import os
 import subprocess
 from typing import Dict, Any
