@@ -406,13 +406,14 @@ class Fireball(GenerateFireballInput, Calculator):
     def __init__(self, atoms=None,
                  Fdata_path='Fdata',
                  command='fireball.x',
+                 label='fireball',
                  **kwargs):
         self.__name__ = 'fireball'
         self._atoms = None
         self._eigenvalues = None
         self._shell_info = None
         GenerateFireballInput.__init__(self, **kwargs)  # TODO: set kwargs use set() function, see vasp calculator
-        Calculator.__init__(self, atoms=atoms, **kwargs)
+        Calculator.__init__(self, atoms=atoms, label=label, **kwargs)
         if not os.path.isdir(Fdata_path):
             # check the existence of Fdata directory
             print("Error: Can't find Fdata! Pls Check the setting!")
