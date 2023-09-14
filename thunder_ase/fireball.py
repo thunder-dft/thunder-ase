@@ -491,11 +491,11 @@ class Fireball(GenerateFireballInput, Calculator):
                 return self.results['charges']
 
         shell_charges = self.results['shell_charges']
-        sum_charges = [sum(isc) for isc in shell_charges]
+        sum_charges = np.asfarray([sum(isc) for isc in shell_charges])
         if atoms is None:
             atoms = self.atoms
-        ref_charges = [sum(self.shell_info[s]['occupation']) for s in atoms.symbols]
-        charges = [ref - sc for sc, ref in zip(sum_charges, ref_charges)]
+        ref_charges = np.asfarray([sum(self.shell_info[s]['occupation']) for s in atoms.symbols])
+        charges = ref_charges - sum_charges
         self.results['charges'] = charges
         return charges
 
