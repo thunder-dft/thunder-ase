@@ -755,10 +755,6 @@ class MultiFireball:
             write_params(self.calc.options_params, f)
             f.write("&END\n")
 
-            f.write("&XSFOPTIONS\n")
-            write_params(self.calc.xsfoptions_params, f)
-            f.write("&END\n")
-
     def write_input(self):
         Fdata_path = self.calc.Fdata_path
         self.write_Fdata_inp(Fdata_path=Fdata_path)
