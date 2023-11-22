@@ -1,7 +1,9 @@
 import os
 import subprocess
 from typing import Dict, Any
+from random import randint
 import ase
+from ase.calculators.socketio import SocketIOCalculator
 from ase.units import Hartree
 import numpy as np
 from ase.calculators.calculator import Calculator, CalculationFailed, all_changes
@@ -119,7 +121,6 @@ output_params = {
     'iwriteout_abs': {'type': (int,), 'name': 'iwriteout_abs', 'default': 0},
     'iwriteout_ewf': {'type': (int,), 'name': 'iwriteout_ewf', 'default': 0},
 }
-
 
 calc_params = {
     'kpt_size': {'type': (list, np.array), 'name': 'kpt_size', 'default': None},
@@ -239,7 +240,9 @@ class GenerateFireballInput:
             Fdata_path = 'Fdata'
         species = sorted([i for i in set(atoms.numbers)])
 
-        # TODO: if Fdata_path longer than 128, make a symbolic link.
+        if len(Fdata_path) > 128:
+            print("Warning: Fdata_path longer than 128, it is recommended make a symbolic link.")
+
         with open('Fdata.inp', 'w') as f:
             f.write("{}\n".format(len(species)))
             for s in species:
@@ -272,7 +275,27 @@ class GenerateFireballInput:
                 self.nkpt = v
             elif k == 'kpt_reduced':
                 self.kpt_reduced = v
+            else:
+                raise NotImplementedError('**{}** is not implemented!'.format(k))
+
+            # set default value
+            # socket setting
+            if k == 'ipi' and v == 1:
+                if 'inet' not in self.options_params:
+                    self.options_params['inet'] = 0
+                if 'host' not in self.options_params:
+                    self.options_params['host'] = 'thunder-ase-{:x}'.format(randint(16 ** 3, 16 ** 4 - 1))
+                else:
+                    self.options_params['host'] = self.options_params['host'] + '-{:x}'.format(
+                        randint(16 ** 3, 16 ** 4 - 1))
         return
+
+    @property
+    def socket(self):
+        if 'host' in self.options_params:
+            return self.options_params['host']
+        else:
+            return None
 
     def write_options(self):
         with open('structures.inp', 'w') as f:
@@ -476,7 +499,7 @@ class Fireball(GenerateFireballInput, Calculator):
         if 'charges' in result['fireball'][-1]:
             shell_charges = result['fireball'][-1]['charges']
             result['fireball'][-1]['shell_charges'] = shell_charges
-            del(result['fireball'][-1]['charges'])
+            del (result['fireball'][-1]['charges'])
 
         self.results = result['fireball'][-1]
 
@@ -806,3 +829,9 @@ def read_inp(input_file):
                       cell=cell,
                       pbc=pbc)
     return atoms
+
+
+def socket_run(atoms, calculator, dyn, max_step, **kwargs):
+    with SocketIOCalculator(calculator, log=None, unixsocket=calculator.socket) as calc:
+        atoms.calc = calc
+        dyn.run(max_step, **kwargs)
