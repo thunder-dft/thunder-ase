@@ -123,6 +123,7 @@ output_params = {
 }
 
 calc_params = {
+    'xc': {'type': (str,), 'name': 'xc', 'default': None},
     'kpt_size': {'type': (list, np.array), 'name': 'kpt_size', 'default': None},
     'kpt_offset': {'type': (list, np.array), 'name': 'kpt_offset', 'default': None},
     'kpt_interval': {'type': (list, np.array, float, int), 'name': 'kpt_interval', 'default': None},
@@ -176,6 +177,7 @@ class GenerateFireballInput:
         self.kpt_reduced = fireball_params['kpt_reduced']['default']
         self._kpoints = None
 
+        self.valid_xc = ['blyp', 'lda']
         self.check_kwargs(kwargs)
 
     @property
@@ -275,6 +277,12 @@ class GenerateFireballInput:
                 self.nkpt = v
             elif k == 'kpt_reduced':
                 self.kpt_reduced = v
+            elif k == 'xc':
+                if v.lower() in self.valid_xc:
+                    self.xc = v
+                else:
+                    raise NotImplementedError('xc {} is not implemented yet!'.format(v))
+
             else:
                 raise NotImplementedError('**{}** is not implemented!'.format(k))
 

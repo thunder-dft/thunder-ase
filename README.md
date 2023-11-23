@@ -16,6 +16,7 @@ The interface of ASE for FIREBALL.
 #### Requirements
 
 * ase
+* dftd4 and dftd4-python for DFT-D4 (optional)
 
 ### Tutorial
 
@@ -30,15 +31,12 @@ Fdata_path = 'YOUR_FDATA_PATH'
 
 kwargs = {'iwriteout_charges': 1,  # Writing out the charges.
           'efermi_T': 200.0,
-          'max_scf_iterations_set': 100,
-          'scf_tolerance_set': 0.00000001,
-          'beta_set': 0.04,
           }
 
 calc = Fireball(command='YOUR_PATH for fireball.x', 
                 Fdata_path=Fdata_path,
                 **kwargs)
-atoms.set_calculator(calc)
+atoms.calc = calc
 
 e0 = atoms.get_potential_energy()
 efermi = atoms.calc.get_fermi_level()
@@ -50,9 +48,15 @@ print("The Fermi Level is {:.3f} eV.".format(efermi))
 #### Important notes
 
 * The socket-run is highly recommended during MD simulation, it will save lots of time on reading Fdata. Related keywords: `ipi`, `inet`, `host`.
+* See more in [C2H5OH optimization example](examples/3_C2H5OH_optimization/C2H5OH_optimization.ipynb).
 
+#### Grimme's DFT-D4 combination
 
-#### Basic Parameters
+See [DFDT-D4 example](examples/6_Benzene_DFT-D4/Benzene_DFT-D4.ipynb).
+
+More info: [DFT-D4 with ASE support](https://dftd4.readthedocs.io/en/latest/reference/ase.html).
+
+### Basic Parameters
 
 * `qstate` : The charge state of the system. Default is 0. Positive values mean add extra electrons, negatives mean remove electrons.
 * `efermi_t`: Smearing temperature at Fermi level. Default is 100.0, which is about 0.0086 eV. For metal system, larger value is recommended.
@@ -130,8 +134,8 @@ The following parameters are deprecated due to the usage of thunder-ase. In the 
   * add MD simulation examples
   * add Fukui function calculation examples
 * v0.5: interactive running with socket.
-* v0.6: interface with LODESTAR to do open quantum system simulation.
+* v0.6: combination with Grimme's DFT-D4 correction.
 * v0.7: support more functionals, add keywords `xc`.
 * v0.8: Fdata management.
-* v0.9: add Grimme's DFTD3 correction.
-* v0.10: support XingChen's nano-reactor
+* v0.9: interface with LODESTAR to do open quantum system simulation.
+* v0.10: support XingChen Liu's nano-reactor
