@@ -50,11 +50,17 @@ print("The Fermi Level is {:.3f} eV.".format(efermi))
 * The socket-run is highly recommended during MD simulation, it will save lots of time on reading Fdata. Related keywords: `ipi`, `inet`, `host`.
 * See more in [C2H5OH optimization example](examples/3_C2H5OH_optimization/C2H5OH_optimization.ipynb).
 
-#### Grimme's DFT-D4 combination
+#### Grimme's DFT-D3 and DFT-D4 combination
 
-See [DFDT-D4 example](examples/6_Benzene_DFT-D4/Benzene_DFT-D4.ipynb).
+See 
+* [DFDT-D3 example](examples/6_Benzene_DFT-D3/Benzene_DFT-D3.ipynb)  
+* [DFDT-D4 example](examples/6_Benzene_DFT-D4/Benzene_DFT-D4.ipynb).
 
-More info: [DFT-D4 with ASE support](https://dftd4.readthedocs.io/en/latest/reference/ase.html).
+More info: 
+* [DFT-D3 manual](https://www.chemiebn.uni-bonn.de/pctc/mulliken-center/software/dft-d3/get-the-current-version-of-dft-d3)
+* [DFT-D3 in ASE](https://wiki.fysik.dtu.dk/ase/ase/calculators/dftd3.html)
+* [DFT-D4 with ASE support](https://dftd4.readthedocs.io/en/latest/reference/ase.html)
+
 
 ### Basic Parameters
 
