@@ -8,7 +8,6 @@ from ase.units import Hartree
 import numpy as np
 from ase.calculators.calculator import Calculator, CalculationFailed, all_changes
 from ase.dft.kpoints import monkhorst_pack, kpoint_convert
-from ase.geometry import get_distances
 import ase.spacegroup
 from ase.io import jsonio
 from ase.dft.kpoints import BandPath
@@ -16,66 +15,52 @@ from thunder_ase.utils.mwfn import MWFN_FORMAT, MWFN_DEFAULT, MWFN_TEMPLATE, \
     CELL_TEMPLATE, format_data, read_cdcoeffs, reorder_cdcoeffs
 from thunder_ase.utils.basis_set import read_info, read_gaussian
 from thunder_ase.utils.shell_dict import SHELL_PRIMARY_NUMS, SHELL_PRIMITIVE
+import spglib
 
 
 def get_kpts(atoms, size=None, offset=None, reduced=False, **kwargs):
     """
     Get reduced kpoints.
     Reference:
-    * https://wiki.fysik.dtu.dk/ase/ase/dft/kpoints.html
-    * https://wiki.fysik.dtu.dk/ase/ase/spacegroup/spacegroup.html
+    * https://spglib.readthedocs.io/en/latest/python-spglib.html#methods-kpoints
     :param reduced:
     :param offset:
     :param atoms:
     :param size:
+    :param gamma:
     :return: np.array with shape (N, 4), coordinates and weights
-
-    TODO: Need check the algorithm from gpaw/kpt_refine.py
-    TODO: compare with vasp in several systems
     """
-    # generate MP kpoints
-    kpoints = monkhorst_pack(size) + np.asarray(offset)
-    kpoints = kpoint_convert(cell_cv=atoms.cell, skpts_kc=kpoints)  # convert from scaled and cartesian coordinates
-    nkpt = len(kpoints)
-    if not reduced or nkpt <= 1:
+    if offset is None:
+        offset = [0., 0., 0.]
+    offset = np.asarray(offset)
+    if not reduced:
+        # generate MP kpoints
+        kpoints = monkhorst_pack(size) + np.asarray(offset)
+        nkpt = len(kpoints)
+        kpoints = kpoint_convert(cell_cv=atoms.cell, skpts_kc=kpoints)  # convert from scaled and cartesian coordinates
         return [[kx, ky, kz, 1.0 / nkpt] for kx, ky, kz in kpoints]
 
     if 'symprec' in kwargs:
         symprec = kwargs['symprec']
     else:
         symprec = 1e-05  # for Cartesian coordinate in real space
-    try:
-        # get spacegroup from atoms ase.spacegroup.get_spacegroup
-        sg = ase.spacegroup.get_spacegroup(atoms, symprec=symprec)
-    except RuntimeError:
-        print("Didn't find symmetry. No reducing is needed.")
-        return [[kx, ky, kz, 1.0 / nkpt] for kx, ky, kz in kpoints]
+    if 'gamma' in kwargs:
+        gamma = kwargs['gamma']
+    else:
+        gamma = True
+    if gamma:
+        is_shift = [0, 0, 0]
+    else:
+        is_shift = [1, 1, 1]
 
-    kpts_extend = []  # all the symmetry points for each kpts
-    for kpt in kpoints:
-        sites, kinds = sg.equivalent_sites([kpt])
-        kpts_extend.append(sites)
+    mapping, grid = spglib.get_ir_reciprocal_mesh(size, atoms, is_shift=is_shift, symprec=symprec)
+    N = len(grid)
+    ir_idx = np.unique(mapping)
+    ir_grid = grid[ir_idx] + offset
+    kpoints = kpoint_convert(cell_cv=atoms.cell, skpts_kc=ir_grid)  # convert from scaled and cartesian coordinates
+    weights = [sum(mapping==i) / N for i in ir_idx]
 
-    irreducible_dct = dict()
-    kpoints_lst = kpoints.tolist()
-    while len(kpoints_lst) > 0:
-        kpt = kpoints_lst.pop(0)
-        kpt_extend = kpts_extend.pop(0)
-        key = tuple(kpt)
-        irreducible_dct[key] = [kpt]
-        # calc the distance between kpt_extend and kpts_extend
-        if len(kpoints_lst) > 0:
-            reduced_idx = []
-            for idx, other_extend in enumerate(kpts_extend[:]):
-                dist_array, dist = get_distances(kpt_extend, other_extend, cell=atoms.cell, pbc=True)
-                if np.any(dist < symprec):
-                    reduced_idx.append(idx)
-            irreducible_dct[key] += [kpoints_lst[idx] for idx in reduced_idx]
-            # update kpoints_lst and kpts_extend by removing the reduced_idx
-            kpoints_lst = [v for idx, v in enumerate(kpoints_lst) if idx not in reduced_idx]
-            kpts_extend = [v for idx, v in enumerate(kpts_extend) if idx not in reduced_idx]
-
-    kpoints_weight = [[k[0], k[1], k[2], len(v) / nkpt] for k, v in irreducible_dct.items()]
+    kpoints_weight = [[k[0], k[1], k[2], w] for k, w in zip(kpoints, weights)]
     return kpoints_weight
 
 
@@ -129,7 +114,8 @@ calc_params = {
     'kpt_interval': {'type': (list, np.array, float, int), 'name': 'kpt_interval', 'default': None},
     'kpt_path': {'type': (BandPath, str, list, np.array), 'name': 'kpt_path', 'default': None},
     'nkpt': {'type': (int,), 'name': 'nkpt', 'default': None},  # n kpoints on path. Used if kpt_path is string.
-    'kpt_reduced': {'type': (bool,), 'name': 'kpt_reduced', 'default': False},
+    'kpt_reduced': {'type': (bool,), 'name': 'kpt_reduced', 'default': True},
+    'kpt_gamma': {'type': (bool,), 'name': 'kpt_gamma', 'default': True},
 }
 
 fireball_params = options_params | output_params | calc_params
@@ -175,6 +161,7 @@ class GenerateFireballInput:
         self.kpt_path = fireball_params['kpt_path']['default']
         self.nkpt = fireball_params['nkpt']['default']
         self.kpt_reduced = fireball_params['kpt_reduced']['default']
+        self.kpt_gamma = fireball_params['kpt_gamma']['default']
         self._kpoints = None
 
         self.valid_xc = ['blyp', 'lda']
@@ -225,7 +212,8 @@ class GenerateFireballInput:
         else:
             size = self.kpt_size
 
-        self._kpoints = get_kpts(self.atoms, size=size, offset=offset, reduced=reduced, **kwargs)
+        self._kpoints = get_kpts(self.atoms, size=size, offset=offset,
+                                 reduced=reduced, gamma=self.kpt_gamma, **kwargs)
         self.nkpt = len(self._kpoints)
         return self._kpoints
 
@@ -277,6 +265,8 @@ class GenerateFireballInput:
                 self.nkpt = v
             elif k == 'kpt_reduced':
                 self.kpt_reduced = v
+            elif k == 'kpt_gamma':
+                self.kpt_gamma = v
             elif k == 'xc':
                 if v.lower() in self.valid_xc:
                     self.xc = v

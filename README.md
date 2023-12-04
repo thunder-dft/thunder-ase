@@ -79,7 +79,8 @@ More info:
 * `kpt_interval`: Define kpoint sampling by the interval. Default is None.
 * `kpt_path`: K points path to obtain band structure. Default is None. See more in [`ase.dft.kpoints.BandPath`](https://wiki.fysik.dtu.dk/ase/ase/dft/kpoints.html#band-path).
 * `nkpt`: Number of kpoints on path. Default is None. Used if `kpt_path` is defined by string.
-* `kpt_reduced`: (Experimental!) Whether reduce the k points. Default is False.
+* `kpt_reduced`: Whether reduce the k points. Default is True.
+* `kpt_gamma`: . Gamma centre mesh. Default is True.
 
 #### Advanced Parameters
 
