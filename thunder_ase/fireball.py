@@ -18,9 +18,9 @@ from thunder_ase.utils.shell_dict import SHELL_PRIMARY_NUMS, SHELL_PRIMITIVE
 import spglib
 
 
-def get_kpts(atoms, size=None, offset=None, reduced=False, **kwargs):
+def get_kpts(atoms, size=None, offset=None, reduced=True, **kwargs):
     """
-    Get reduced kpoints.
+    Get irreducible kpoints.
     Reference:
     * https://spglib.readthedocs.io/en/latest/python-spglib.html#methods-kpoints
     :param reduced:
@@ -30,16 +30,6 @@ def get_kpts(atoms, size=None, offset=None, reduced=False, **kwargs):
     :param gamma:
     :return: np.array with shape (N, 4), coordinates and weights
     """
-    if offset is None:
-        offset = [0., 0., 0.]
-    offset = np.asarray(offset)
-    if not reduced:
-        # generate MP kpoints
-        kpoints = monkhorst_pack(size) + np.asarray(offset)
-        nkpt = len(kpoints)
-        kpoints = kpoint_convert(cell_cv=atoms.cell, skpts_kc=kpoints)  # convert from scaled and cartesian coordinates
-        return [[kx, ky, kz, 1.0 / nkpt] for kx, ky, kz in kpoints]
-
     if 'symprec' in kwargs:
         symprec = kwargs['symprec']
     else:
@@ -50,13 +40,21 @@ def get_kpts(atoms, size=None, offset=None, reduced=False, **kwargs):
         gamma = True
     if gamma:
         is_shift = [0, 0, 0]
+        if offset is None:
+            offset = [0., 0., 0.]
     else:
         is_shift = [1, 1, 1]
+        if offset is None:
+            offset = [0.5, 0.5, 0.5]
 
     mapping, grid = spglib.get_ir_reciprocal_mesh(size, atoms, is_shift=is_shift, symprec=symprec)
     N = len(grid)
-    ir_idx = np.unique(mapping)
-    ir_grid = grid[ir_idx] + offset
+    if reduced:
+        ir_idx = np.unique(mapping)
+        ir_grid = (grid[ir_idx] + offset) / np.asarray(size)
+    else:
+        ir_idx = range(N)
+        ir_grid = (grid + offset) / np.asarray(size)
     kpoints = kpoint_convert(cell_cv=atoms.cell, skpts_kc=ir_grid)  # convert from scaled and cartesian coordinates
     weights = [sum(mapping==i) / N for i in ir_idx]
 
@@ -109,13 +107,16 @@ output_params = {
 
 calc_params = {
     'xc': {'type': (str,), 'name': 'xc', 'default': None},
-    'kpt_size': {'type': (list, np.array), 'name': 'kpt_size', 'default': None},
+    # kpoint setting method I, mesh grid
+    'kpt_size': {'type': (list, np.array, tuple), 'name': 'kpt_size', 'default': None},
     'kpt_offset': {'type': (list, np.array), 'name': 'kpt_offset', 'default': None},
+    'kpt_gamma': {'type': (bool,), 'name': 'kpt_gamma', 'default': True},
+    'kpt_reduced': {'type': (bool,), 'name': 'kpt_reduced', 'default': True},  # in the future, this can be removed
+    # kpoint setting method II, grid interval
     'kpt_interval': {'type': (list, np.array, float, int), 'name': 'kpt_interval', 'default': None},
     'kpt_path': {'type': (BandPath, str, list, np.array), 'name': 'kpt_path', 'default': None},
+    # kpoint setting method III, for band structure
     'nkpt': {'type': (int,), 'name': 'nkpt', 'default': None},  # n kpoints on path. Used if kpt_path is string.
-    'kpt_reduced': {'type': (bool,), 'name': 'kpt_reduced', 'default': True},
-    'kpt_gamma': {'type': (bool,), 'name': 'kpt_gamma', 'default': True},
 }
 
 fireball_params = options_params | output_params | calc_params
@@ -200,10 +201,6 @@ class GenerateFireballInput:
             self._kpoints = [[k[0], k[1], k[2], 1.0 / self.nkpt] for k in kpts]
             return self._kpoints
 
-        if self.kpt_offset is None:
-            offset = [0., 0., 0.]
-        else:
-            offset = self.kpt_offset
         if self.kpt_size is None:
             if self.kpt_interval is None:
                 size = [1, 1, 1]
@@ -212,7 +209,7 @@ class GenerateFireballInput:
         else:
             size = self.kpt_size
 
-        self._kpoints = get_kpts(self.atoms, size=size, offset=offset,
+        self._kpoints = get_kpts(self.atoms, size=size, offset=self.kpt_offset,
                                  reduced=reduced, gamma=self.kpt_gamma, **kwargs)
         self.nkpt = len(self._kpoints)
         return self._kpoints
