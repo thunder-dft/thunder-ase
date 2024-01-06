@@ -88,7 +88,7 @@ options_params = {
     'ecut_set': {'type': (int, float), 'name': 'Ecut_set', 'default': 200.0},  # control mesh grid number
     'ipi': {'type': (int,), 'name': 'ipi', 'default': 0},  # open I-PI socket
     'inet': {'type': (int,), 'name': 'inet', 'default': 0},  # socket protocol, 0: unixsocket, 1: port
-    'host': {'type': (str,), 'name': 'host', 'default': 'thunder-ase'},  # name for unixsocket
+    'host': {'type': (str,), 'name': 'host', 'default': 'thunder-ase-xxxx'},  # name for unixsocket
 }
 
 output_params = {
@@ -727,6 +727,23 @@ class Fireball(GenerateFireballInput, Calculator):
         with open(filename, 'w') as f:
             f.write(content)
 
+    def dynamics(self, dyn, **kwargs):
+        assert dyn is not None
+        atoms = dyn.atoms
+
+        if 'nstepf' not in self.options_params:
+            if 'steps' in kwargs:
+                max_step = kwargs['steps']
+            else:
+                max_step = dyn.max_steps
+        else:
+            max_step = self.options_params['nstepf']
+        self.options_params['nstepf'] = max_step + 1
+
+        with SocketIOCalculator(self, log=None, unixsocket=self.socket) as calc:
+            atoms.calc = calc
+            dyn.run(**kwargs)
+
 
 class MultiFireball:
     name = 'multi_fireball'
@@ -824,9 +841,3 @@ def read_inp(input_file):
                       cell=cell,
                       pbc=pbc)
     return atoms
-
-
-def socket_run(atoms, calculator, dyn, max_step, **kwargs):
-    with SocketIOCalculator(calculator, log=None, unixsocket=calculator.socket) as calc:
-        atoms.calc = calc
-        dyn.run(max_step, **kwargs)

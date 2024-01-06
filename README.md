@@ -31,9 +31,10 @@ Fdata_path = 'YOUR_FDATA_PATH'
 
 kwargs = {'iwriteout_charges': 1,  # Writing out the charges.
           'efermi_T': 200.0,
+          'ipi': 1, # use i-PI socket protocol. Default is 0. Recommended for optimization and MD.
           }
 
-calc = Fireball(command='YOUR_PATH for fireball.x', 
+calc = Fireball(command='YOUR_PATH for fireball-ase.x', 
                 Fdata_path=Fdata_path,
                 **kwargs)
 atoms.calc = calc
@@ -43,6 +44,11 @@ efermi = atoms.calc.get_fermi_level()
 
 print("The energy is {:.3f} eV.".format(e0))
 print("The Fermi Level is {:.3f} eV.".format(efermi))
+
+# Optimization the Structure
+from ase.optimize.bfgs import BFGS
+dyn = BFGS(atoms, trajectory='opt.traj')
+calc.dynamics(dyn, fmax=0.05)  # This function uses i-PI socket to speed up the calculation. The original ASE way still works, but without socket supported.
 ```
 
 #### Important notes
@@ -99,7 +105,7 @@ More info:
 * `iwriteout_dos`: Write out  density of states. Default is  0 (False).
 * `ipi`: open I-PI socket. Default is 0.
 * `inet`: socket protocol, 0: unixsocket, 1: port. Default is 0(unixsocket). inet=1 is under-developing. 
-* `host`: name for unixsocket. Default is 'thunder-ase'.
+* `host`: name for unixsocket. Default is 'thunder-ase-xxxx', xxxx is random string.
 
 
 
@@ -142,7 +148,8 @@ The following parameters are deprecated due to the usage of thunder-ase. In the 
   * add Fukui function calculation examples
 * v0.5: interactive running with socket.
 * v0.6: combination with Grimme's DFT-D4 correction.
-* v0.7: support more functionals, add keywords `xc`.
-* v0.8: Fdata management.
-* v0.9: interface with LODESTAR to do open quantum system simulation.
-* v0.10: support XingChen Liu's nano-reactor
+* v0.7: new calc.dynamics() function for easy running optimization and MD with socket.
+* vx.x: support more functionals, add keywords `xc`.
+* vx.x: Fdata management.
+* vx.x: interface with LODESTAR to do open quantum system simulation.
+* vx.x: support XingChen Liu's nano-reactor
