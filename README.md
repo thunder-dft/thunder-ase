@@ -51,11 +51,6 @@ dyn = BFGS(atoms, trajectory='opt.traj')
 calc.dynamics(dyn, fmax=0.05)  # This function uses i-PI socket to speed up the calculation. The original ASE way still works, but without socket supported.
 ```
 
-#### Important notes
-
-* The socket-run is highly recommended during MD simulation, it will save lots of time on reading Fdata. Related keywords: `ipi`, `inet`, `host`.
-* See more in [C2H5OH optimization example](examples/3_C2H5OH_optimization/C2H5OH_optimization.ipynb).
-
 #### Grimme's DFT-D3 and DFT-D4 combination
 
 See 
