@@ -6,7 +6,7 @@ import ase
 from ase.calculators.socketio import SocketIOCalculator
 from ase.units import Hartree
 import numpy as np
-from ase.calculators.calculator import Calculator, CalculationFailed, all_changes
+from ase.calculators.calculator import Calculator, CalculationFailed, all_changes, PropertyNotImplementedError
 from ase.dft.kpoints import monkhorst_pack, kpoint_convert
 import ase.spacegroup
 from ase.io import jsonio
@@ -449,6 +449,19 @@ class Fireball(GenerateFireballInput, Calculator):
             self._atoms = None
         else:
             self._atoms = atoms.copy()
+
+    def get_potential_energy(self, atoms=None, force_consistent=False):
+        if force_consistent:
+            if 'free_energy' not in self.results:
+                name = self.__class__.__name__
+                # XXX but we don't know why the energy is not there.
+                # We should raise PropertyNotPresent.  Discuss
+                raise PropertyNotImplementedError(
+                    'Force consistent/free energy ("free_energy") '
+                    'not provided by {0} calculator'.format(name))
+            return self.results['free_energy']
+        else:
+            return self.get_property('energy', atoms)
 
     def calculate(self,
                   atoms=None,
