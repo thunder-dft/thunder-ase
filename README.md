@@ -16,6 +16,7 @@ The interface of ASE for FIREBALL.
 #### Requirements
 
 * ase
+* spglib
 * dftd4 and dftd4-python for DFT-D4 (optional)
 
 ### Tutorial

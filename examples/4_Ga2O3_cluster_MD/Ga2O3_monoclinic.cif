@@ -1,0 +1,62 @@
+data_Ga2O3_monoclinic
+_audit_creation_date              2024-02-02
+_audit_creation_method            'Materials Studio'
+_symmetry_space_group_name_H-M    'C2/M'
+_symmetry_Int_Tables_number       12
+_symmetry_cell_setting            monoclinic
+loop_
+_symmetry_equiv_pos_as_xyz
+  x,y,z
+  -x,y,-z
+  -x,-y,-z
+  x,-y,z
+  x+1/2,y+1/2,z
+  -x+1/2,y+1/2,-z
+  -x+1/2,-y+1/2,-z
+  x+1/2,-y+1/2,z
+_cell_length_a                    12.2300
+_cell_length_b                    3.0400
+_cell_length_c                    5.8000
+_cell_angle_alpha                 90.0000
+_cell_angle_beta                  103.7000
+_cell_angle_gamma                 90.0000
+loop_
+_atom_site_label
+_atom_site_type_symbol
+_atom_site_fract_x
+_atom_site_fract_y
+_atom_site_fract_z
+_atom_site_U_iso_or_equiv
+_atom_site_adp_type
+_atom_site_occupancy
+Ga1    Ga    0.09040   0.00000   0.79480   0.00000  Uiso   1.00
+Ga2    Ga    0.34140   0.00000   0.68570   0.00000  Uiso   1.00
+O3     O     0.16740   0.00000   0.10110   0.00000  Uiso   1.00
+O4     O     0.49570   0.00000   0.25530   0.00000  Uiso   1.00
+O5     O     0.82790   0.00000   0.43650   0.00000  Uiso   1.00
+loop_
+_geom_bond_atom_site_label_1
+_geom_bond_atom_site_label_2
+_geom_bond_distance
+_geom_bond_site_symmetry_2
+_ccdc_geom_bond_type
+Ga1    O3      1.803   1_556 S
+Ga1    O5      1.853   2_656 S
+Ga1    O4      1.833   6_556 S
+Ga1    O4      1.833   6_546 S
+Ga2    O5      2.023   2_656 S
+Ga2    O5      2.077   5_455 S
+Ga2    O5      2.077   5_445 S
+Ga2    O3      1.978   6_556 S
+Ga2    O3      1.978   6_546 S
+Ga2    O4      1.940   2_656 S
+O3     Ga1     1.803   1_554 S
+O3     Ga2     1.978   6_546 S
+O3     Ga2     1.978   6_556 S
+O4     Ga1     1.833   6_546 S
+O4     Ga1     1.833   6_556 S
+O4     Ga2     1.940   2_656 S
+O5     Ga1     1.853   2_656 S
+O5     Ga2     2.023   2_656 S
+O5     Ga2     2.077   5_545 S
+O5     Ga2     2.077   5     S
