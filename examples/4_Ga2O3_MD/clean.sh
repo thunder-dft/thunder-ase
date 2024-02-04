@@ -10,6 +10,5 @@ rm *.CHARGES \
    0*.json \
    output.log \
    structures.options \
-   structures.xsfoptions \
    md-nvt.* \
    WARNINGS

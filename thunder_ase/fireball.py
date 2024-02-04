@@ -18,6 +18,19 @@ from thunder_ase.utils.shell_dict import SHELL_PRIMARY_NUMS, SHELL_PRIMITIVE
 import spglib
 
 
+def atoms2spg(atoms):
+    """
+    Convert ASE Atoms object to spglib input cell format
+    :param atoms: ASE Atoms object
+    :return: spglib input cell format
+    """
+    lattice = np.array(atoms.get_cell().T, dtype='double', order='C')
+    positions = np.array(atoms.get_scaled_positions(), dtype='double', order='C')
+    numbers = np.array(atoms.get_atomic_numbers(), dtype='intc')
+    cell = (lattice, positions, numbers)
+    return cell
+
+
 def get_kpts(atoms, size=None, offset=None, reduced=True, **kwargs):
     """
     Get irreducible kpoints.
@@ -47,7 +60,7 @@ def get_kpts(atoms, size=None, offset=None, reduced=True, **kwargs):
         if offset is None:
             offset = [0.5, 0.5, 0.5]
 
-    mapping, grid = spglib.get_ir_reciprocal_mesh(size, atoms, is_shift=is_shift, symprec=symprec)
+    mapping, grid = spglib.get_ir_reciprocal_mesh(size, atoms2spg(atoms), is_shift=is_shift, symprec=symprec)
     N = len(grid)
     if reduced:
         ir_idx = np.unique(mapping)
@@ -56,7 +69,7 @@ def get_kpts(atoms, size=None, offset=None, reduced=True, **kwargs):
         ir_idx = range(N)
         ir_grid = (grid + offset) / np.asarray(size)
     kpoints = kpoint_convert(cell_cv=atoms.cell, skpts_kc=ir_grid)  # convert from scaled and cartesian coordinates
-    weights = [sum(mapping==i) / N for i in ir_idx]
+    weights = [sum(mapping == i) / N for i in ir_idx]
 
     kpoints_weight = [[k[0], k[1], k[2], w] for k, w in zip(kpoints, weights)]
     return kpoints_weight
