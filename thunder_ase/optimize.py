@@ -64,7 +64,7 @@ class RattleBFGS(BFGS):
         # read old force from file
         f0 = self.read_f0()
         # read new force from atoms
-        f1 = self.atoms.get_forces()
+        f1 = self.atoms.get_forces() / self.rattle
         f = f0 + f1
         # write new force to file
         self.dump_f0(f)
