@@ -4,6 +4,7 @@ from types import MethodType
 from typing import Dict, Any
 from random import randint
 import ase
+from ase import Atoms
 from ase.calculators.socketio import SocketIOCalculator
 from ase.units import Hartree
 import numpy as np
@@ -100,6 +101,10 @@ def write_params(dct, f):
             f.write("{} = '{}'\n".format(kname, v))
         else:
             f.write("{} = {}\n".format(kname, v))
+
+
+def write_current_result(atoms, sname='001'):
+    atoms.write(sname+'.traj')
 
 
 class GenerateFireballInput:
@@ -459,6 +464,13 @@ class Fireball(GenerateFireballInput, Calculator):
         return errorcode
 
     def read_results(self):
+        # try to read 001.traj first
+        output = self.sname + ".traj"
+        if os.path.isfile(output):
+            atoms = ase.io.read(output)
+            self.results = atoms.arrays
+            return None
+
         output = self.sname + ".json"
         result = jsonio.read_json(output)
         if 'charges' in result['fireball'][-1]:
@@ -467,6 +479,12 @@ class Fireball(GenerateFireballInput, Calculator):
             del (result['fireball'][-1]['charges'])
 
         self.results = result['fireball'][-1]
+
+        if self.atoms is not None:
+            # update results
+            self.atoms.array.update(self.results)
+            # write current result and atoms to traj
+            self.atoms.write(self.sname+'.traj')
 
     def get_charges(self, atoms=None):
         if self.results is None:
@@ -701,6 +719,7 @@ class Fireball(GenerateFireballInput, Calculator):
         assert dyn is not None
 
         atoms = dyn.atoms
+        dyn.attach(write_current_result, atoms=atoms, sname=self.sname)
 
         if 'nstepf' not in self.options_params:
             if 'steps' in kwargs:
