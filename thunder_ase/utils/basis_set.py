@@ -4,10 +4,21 @@ import os.path
 import numpy as np
 from scipy.optimize import minimize, basinhopping
 import matplotlib.pyplot as plt
-
-from thunder_ase.utils import ordinal
 from thunder_ase.utils.shell_dict import SHELL_NUM, SHELL_NAME
 from ase.units import Bohr
+
+
+def ordinal(n: int):
+    """
+    Convert an integer to "1st", "2nd", etc,
+    :param n: int
+    :return: str
+    """
+    if 11 <= (n % 100) <= 13:
+        suffix = 'th'
+    else:
+        suffix = ['th', 'st', 'nd', 'rd', 'th'][min(n % 10, 4)]
+    return str(n) + suffix
 
 
 # read wf file

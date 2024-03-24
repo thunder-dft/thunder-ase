@@ -1,5 +1,6 @@
 import os
 import subprocess
+from types import MethodType
 from typing import Dict, Any
 from random import randint
 import ase
@@ -698,7 +699,10 @@ class Fireball(GenerateFireballInput, Calculator):
 
     def dynamics(self, dyn, **kwargs):
         assert dyn is not None
+        from thunder_ase.optimize import rms_converged
+
         atoms = dyn.atoms
+        dyn.converged = MethodType(rms_converged, dyn)  # use rms as convergence criteria instead of fmax
 
         if 'nstepf' not in self.options_params:
             if 'steps' in kwargs:
