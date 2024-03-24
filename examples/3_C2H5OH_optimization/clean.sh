@@ -10,5 +10,5 @@ rm *.CHARGES \
    output.log \
    structures.options \
    WARNINGS \
-   opt*log \
-   opt*traj
+   minimize.log \
+   minimize.traj
