@@ -699,10 +699,8 @@ class Fireball(GenerateFireballInput, Calculator):
 
     def dynamics(self, dyn, **kwargs):
         assert dyn is not None
-        from thunder_ase.optimize import rms_converged
 
         atoms = dyn.atoms
-        dyn.converged = MethodType(rms_converged, dyn)  # use rms as convergence criteria instead of fmax
 
         if 'nstepf' not in self.options_params:
             if 'steps' in kwargs:
@@ -716,6 +714,24 @@ class Fireball(GenerateFireballInput, Calculator):
         with SocketIOCalculator(self, log=None, unixsocket=self.socket) as calc:
             atoms.calc = calc
             dyn.run(**kwargs)
+
+    def minimize(self, atoms=None, fmax=0.1, method='MDMin', **kwargs):
+        from thunder_ase.optimize import rms_converged
+        from importlib import import_module
+        opt_module = import_module('thunder_ase.optimize')
+        try:
+            Optimizer = getattr(opt_module, method)
+        except ImportError:
+            raise ImportError(method)
+
+        if atoms is None:
+            atoms = self.atoms
+
+        atoms.calc = self
+
+        dyn = Optimizer(atoms, trajectory='minimize.traj', logfile='minimize.log', **kwargs)
+        dyn.converged = MethodType(rms_converged, dyn)  # use rms as convergence criteria instead of fmax
+        self.dynamics(dyn, fmax=fmax)
 
 
 class MultiFireball:

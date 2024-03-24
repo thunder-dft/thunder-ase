@@ -12,6 +12,7 @@ from ase.optimize import LBFGS as _LBFGS
 from ase.optimize import BFGS as _BFGS
 from ase.optimize import FIRE as _FIRE
 from ase.md.velocitydistribution import ZeroRotation, Stationary
+from ase.optimize.optimize import Optimizer
 from numpy.linalg import eigh
 
 
@@ -39,6 +40,8 @@ def zero_rotation(atoms, v):
 
 
 class MDMin(_MDMin):
+    defaults = {**Optimizer.defaults, 'dt': 0.1}
+
     def step(self, f=None):
         atoms = self.atoms
 
