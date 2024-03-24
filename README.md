@@ -145,8 +145,10 @@ The following parameters are deprecated due to the usage of thunder-ase. In the 
 * v0.5: interactive running with socket.
 * v0.6: combination with Grimme's DFT-D4 correction.
 * v0.7: new calc.dynamics() function for easy running optimization and MD with socket.
+* v0.8: Use RMS as convergence criteria replace fmax and/or new optimizer for noisy force
+
+** TODO **
 * vx.x: set ipi = 1 as default
-* vx.x: Use RMS as convergence criteria replace fmax and/or new optimizer for noisy force
 * vx.x: Fdata management. Maybe not in this repository.
 * vx.x: support more functionals, add keywords `xc`.
 * vx.x: interface with LODESTAR to do open quantum system simulation.
