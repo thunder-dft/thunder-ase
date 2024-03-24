@@ -1,0 +1,27 @@
+ &OPTIONS
+ nstepi                 =             1
+ nstepf                 =            11
+ ipi                    =             1
+ inet                   =             0
+ port                   =         31415
+ host                   = 'thunder-ase'
+ iquench                =             0
+ T_initial              =         300.0
+ T_final                =           0.0
+ T_want                 =         300.0
+ taurelax               =           5.0
+ efermi_T               =         100.0
+ dt                     =          0.25
+ iensemble              =             0
+ iconstraint_rcm        =             0
+ iconstraint_vcm        =             1
+ iconstraint_L          =             1
+ iconstraint_KE         =             1
+ ifix_neighbors         =             0
+ ifix_CHARGES           =             0
+ max_scf_iterations_set =            50
+ scf_tolerance_set      =    0.00000001
+ beta_set               =          0.08
+ qstate                 =          0.00
+ Ecut_set               =         200.0
+ &END

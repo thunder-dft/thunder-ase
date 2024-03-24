@@ -47,9 +47,9 @@ print("The energy is {:.3f} eV.".format(e0))
 print("The Fermi Level is {:.3f} eV.".format(efermi))
 
 # Optimization the Structure
-from ase.optimize.bfgs import BFGS
-dyn = BFGS(atoms, trajectory='opt.traj')
-calc.dynamics(dyn, fmax=0.05)  # This function uses i-PI socket to speed up the calculation. The original ASE way still works, but without socket supported.
+from thunder_ase.optimize import MDMin
+dyn = MDMin(atoms, trajectory='opt.traj')
+calc.dynamics(dyn, fmax=0.1)  # This function uses i-PI socket to speed up the calculation. The original ASE way still works, but without socket supported.
 ```
 
 #### Grimme's DFT-D3 and DFT-D4 combination
