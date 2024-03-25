@@ -103,8 +103,6 @@ More info:
 * `inet`: socket protocol, 0: unixsocket, 1: port. Default is 0(unixsocket). inet=1 is under-developing. 
 * `host`: name for unixsocket. Default is 'thunder-ase-xxxx', xxxx is random string.
 
-
-
 #### Deprecated Parameters
 
 The following parameters are deprecated due to the usage of thunder-ase. In the future, they will be removed from FIREBALL. Most parameters are for MD simulations.
@@ -148,6 +146,7 @@ The following parameters are deprecated due to the usage of thunder-ase. In the 
 * v0.8: Use RMS as convergence criteria replace fmax and/or new optimizer for noisy force
 
 ** TODO **
+* vx.x: build tests framework for FIREBALL; GitHub support  
 * vx.x: set ipi = 1 as default
 * vx.x: Fdata management. Maybe not in this repository.
 * vx.x: support more functionals, add keywords `xc`.
