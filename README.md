@@ -146,6 +146,8 @@ The following parameters are deprecated due to the usage of thunder-ase. In the 
 * v0.8: Use RMS as convergence criteria replace fmax and/or new optimizer for noisy force
 
 ** TODO **
+
+* vx.x: fix the phase issue for generating Multiwfn input
 * vx.x: build tests framework for FIREBALL; GitHub support  
 * vx.x: set ipi = 1 as default
 * vx.x: Fdata management. Maybe not in this repository.
