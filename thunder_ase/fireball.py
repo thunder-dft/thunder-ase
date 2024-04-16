@@ -748,7 +748,11 @@ class Fireball(GenerateFireballInput, Calculator):
 
         atoms.calc = self
 
-        dyn = Optimizer(atoms, trajectory='minimize.traj', logfile='minimize.log', **kwargs)
+        if 'trajectory' not in kwargs:
+            kwargs['trajectory'] = 'minimize.traj'
+        if 'logfile' not in kwargs:
+            kwargs['logfile'] = 'minimize.log'
+        dyn = Optimizer(atoms, **kwargs)
         dyn.converged = MethodType(rms_converged, dyn)  # use rms as convergence criteria instead of fmax
         self.dynamics(dyn, fmax=fmax)
 

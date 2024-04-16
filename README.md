@@ -55,8 +55,8 @@ print("The energy for optimized structure is {:.3f} eV.".format(atoms.get_potent
 #### Grimme's DFT-D3 and DFT-D4 combination
 
 See 
-* [DFDT-D3 example](examples/6_Benzene_DFT-D3/Benzene_DFT-D3.ipynb)  
-* [DFDT-D4 example](examples/6_Benzene_DFT-D4/Benzene_DFT-D4.ipynb).
+* [DFT-D3 example](examples/6_Benzene_DFT-D3/Benzene_DFT-D3.ipynb)  
+* [DFT-D4 example](examples/6_Benzene_DFT-D4/Benzene_DFT-D4.ipynb).
 
 More info: 
 * [DFT-D3 manual](https://www.chemiebn.uni-bonn.de/pctc/mulliken-center/software/dft-d3/get-the-current-version-of-dft-d3)
