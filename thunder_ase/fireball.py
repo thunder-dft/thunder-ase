@@ -129,6 +129,7 @@ class GenerateFireballInput:
 
         self.valid_xc = ['blyp', 'lda']
         self.check_kwargs(kwargs)
+        self._kwargs = kwargs
 
     @property
     def atoms(self):
@@ -464,27 +465,22 @@ class Fireball(GenerateFireballInput, Calculator):
         return errorcode
 
     def read_results(self):
-        # try to read 001.traj first
-        output = self.sname + ".traj"
-        if os.path.isfile(output):
-            atoms = ase.io.read(output)
-            self.results = atoms.arrays
-            return None
+        if self.options_params.get('ipi') == 1:
+            # read 001.traj instead of 001.json
+            output = self.sname + ".traj"
+            if os.path.isfile(output):
+                atoms = ase.io.read(output)
+                self.results = atoms.arrays
+                return None
+        else:
+            output = self.sname + ".json"
+            result = jsonio.read_json(output)
+            if 'charges' in result['fireball'][-1]:
+                shell_charges = result['fireball'][-1]['charges']
+                result['fireball'][-1]['shell_charges'] = shell_charges
+                del (result['fireball'][-1]['charges'])
 
-        output = self.sname + ".json"
-        result = jsonio.read_json(output)
-        if 'charges' in result['fireball'][-1]:
-            shell_charges = result['fireball'][-1]['charges']
-            result['fireball'][-1]['shell_charges'] = shell_charges
-            del (result['fireball'][-1]['charges'])
-
-        self.results = result['fireball'][-1]
-
-        if self.atoms is not None:
-            # update results
-            self.atoms.array.update(self.results)
-            # write current result and atoms to traj
-            self.atoms.write(self.sname+'.traj')
+            self.results = result['fireball'][-1]
 
     def get_charges(self, atoms=None):
         if self.results is None:
@@ -716,22 +712,17 @@ class Fireball(GenerateFireballInput, Calculator):
             f.write(content)
 
     def dynamics(self, dyn, **kwargs):
-        assert dyn is not None
-
-        atoms = dyn.atoms
-        dyn.attach(write_current_result, atoms=atoms, sname=self.sname)
-
-        if 'nstepf' not in self.options_params:
-            if 'steps' in kwargs:
-                max_step = kwargs['steps']
-            else:
-                max_step = dyn.max_steps
+        if self.options_params.get('ipi') == 1:
+            atoms = dyn.atoms
+            kwargs.setdefault('steps', self.options_params.get('nstepf', dyn.max_steps))
+            # set FIREBALL nstepf option, unless it will stop after 1 step.
+            self.options_params['nstepf'] = kwargs['steps'] + 1
+            with SocketIOCalculator(self, log=None, unixsocket=self.socket) as calc:
+                atoms.calc = calc
+                dyn.run(**kwargs)
         else:
-            max_step = self.options_params['nstepf']
-        self.options_params['nstepf'] = max_step + 1
-
-        with SocketIOCalculator(self, log=None, unixsocket=self.socket) as calc:
-            atoms.calc = calc
+            print('Warning: Use ipi=1 to implement socket is highly recommended!')
+            print('Warning: Without socket, it reads Fdata every step, which is slow for multi-element systems.')
             dyn.run(**kwargs)
 
     def minimize(self, atoms=None, fmax=0.1, method='MDMin', **kwargs):
@@ -743,16 +734,11 @@ class Fireball(GenerateFireballInput, Calculator):
         except ImportError:
             raise ImportError(method)
 
-        if atoms is None:
-            atoms = self.atoms
-
         atoms.calc = self
-
-        if 'trajectory' not in kwargs:
-            kwargs['trajectory'] = 'minimize.traj'
-        if 'logfile' not in kwargs:
-            kwargs['logfile'] = 'minimize.log'
+        kwargs.setdefault('trajectory', 'minimize.traj')
+        kwargs.setdefault('logfile', 'minimize.log')
         dyn = Optimizer(atoms, **kwargs)
+        dyn.attach(write_current_result, atoms=atoms, sname=self.sname)
         dyn.converged = MethodType(rms_converged, dyn)  # use rms as convergence criteria instead of fmax
         self.dynamics(dyn, fmax=fmax)
 
