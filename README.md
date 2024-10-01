@@ -15,7 +15,7 @@ The interface of ASE for FIREBALL.
 
 #### Requirements
 
-* ase
+* ase (version <= 3.22.1, there is a bug for later version.)
 * spglib
 * dftd4 and dftd4-python for DFT-D4 (optional)
 
@@ -147,6 +147,7 @@ The following parameters are deprecated due to the usage of thunder-ase. In the 
 
 ** TODO **
 
+* vx.x: Fix the bug for ase version >= 3.23
 * vx.x: fix the phase issue for generating Multiwfn input
 * vx.x: build tests framework for FIREBALL; GitHub support  
 * vx.x: set ipi = 1 as default

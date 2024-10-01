@@ -4,7 +4,6 @@ from types import MethodType
 from typing import Dict, Any
 from random import randint
 import ase
-from ase import Atoms
 from ase.calculators.socketio import SocketIOCalculator
 from ase.units import Hartree
 import numpy as np

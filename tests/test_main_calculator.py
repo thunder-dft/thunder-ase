@@ -1,6 +1,7 @@
 import shutil
 
 import pytest
+from ase import units
 from ase.build import molecule
 import os
 from thunder_ase.fireball import Fireball
@@ -33,7 +34,7 @@ class TestFireball:
         from ase.build import bulk
         diamond = bulk('C')
         Fdata_path = '/home/ren/Fdata/Fdata-Horsfield-0.10-9SN.Hs4.10-9DN.Cs4.35p4.80.Ns3.95p4.40.Os3.35p3.80'
-        kwargs = {'kpt_size': [6, 6, 6],}
+        kwargs = {'kpt_size': [6, 6, 6]}
         fireball = Fireball(command='fireball-ase.9.x', Fdata_path=Fdata_path, **kwargs)
         diamond.calc = fireball
         E0 = diamond.get_potential_energy()
@@ -51,4 +52,23 @@ class TestFireball:
         Eopt = atoms.get_potential_energy()
 
         assert Eopt == -1017.7185886746582
+
+    def test_md(self):
+        from ase.cluster import Icosahedron
+        from ase.md.verlet import VelocityVerlet as NVE
+
+        max_step = 10  # run 10 steps
+        diamond = Icosahedron('C', noshells=3, latticeconstant=2.4)
+        diamond.positions[:, 0] = diamond.positions[:, 0] + 10
+        Fdata_path = '/home/ren/Fdata/Fdata-Horsfield-0.10-9SN.Hs4.10-9DN.Cs4.35p4.80.Ns3.95p4.40.Os3.35p3.80'
+        kwargs = {'ipi': 1}
+        fireball = Fireball(command='fireball-ase.9.x', Fdata_path=Fdata_path, **kwargs)
+        dyn = NVE(diamond, timestep=1.0 * units.fs, trajectory='md-nve.traj', logfile='md-nve.log')
+        fireball.dynamics(dyn, steps=max_step)
+        E0 = diamond.get_potential_energy()
+
+        assert E0 == -308.687861
+
+    def test_mwfn(self):
+        pass
 
