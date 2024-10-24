@@ -54,6 +54,10 @@ class TestFireball:
         assert Eopt == -1017.7185886746582
 
     def test_md(self):
+        """
+        Use diamond as test
+        :return:
+        """
         from ase.cluster import Icosahedron
         from ase.md.verlet import VelocityVerlet as NVE
 
@@ -68,6 +72,22 @@ class TestFireball:
         E0 = diamond.get_potential_energy()
 
         assert E0 == -308.687861
+
+    def test_md_C60(self):
+        """
+        C60 as test
+        Time: 209.54s
+        :return:
+        """
+        from ase.build import molecule
+        C60 = molecule('C60')
+        from ase.md.verlet import VelocityVerlet as NVE
+        max_step = 10  # run 10 steps
+        Fdata_path = '/home/ren/Fdata/Fdata-Horsfield-0.10-9SN.Hs4.10-9DN.Cs4.35p4.80.Ns3.95p4.40.Os3.35p3.80'
+        kwargs = {'ipi': 1}
+        dyn = NVE(C60, timestep=1.0 * units.fs, trajectory='md-nve.traj', logfile='md-nve.log')
+        fireball = Fireball(command='fireball-ase.9.x', Fdata_path=Fdata_path, **kwargs)
+        fireball.dynamics(dyn, steps=max_step)
 
     def test_mwfn(self):
         pass
