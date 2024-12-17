@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "thunder-ase"
-version = "0.8.3"
+version = "0.9.2"
 authors = [
   { name="PJ Ren", email="openrpj@gmail.com" },
 ]
@@ -18,7 +18,7 @@ classifiers = [
 ]
 
 [project.scripts]
-fit-gaussians = "thunder_ase.utils:fit_gaussian"
+fit-gaussians = "thunder_ase.utils:fit_gaussian_command"
 
 [tool.setuptools]
 packages=['thunder_ase', 'thunder_ase.utils']

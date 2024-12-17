@@ -1,2 +1,2 @@
-ase
+ase<=3.22.1
 spglib
