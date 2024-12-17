@@ -245,18 +245,36 @@ def expand_data(wf_data):
 
 
 # run this after begin.x
-def fit_gaussian(prog='fit_gaussians',
-                 description='Fit Fireball basis set to Gaussian-type basis set.'):
-    parser = argparse.ArgumentParser(
-        prog=prog,
-        description=description, )
-    parser.add_argument('input_name', nargs='+', help='Fireball wave function file.')
-    parser.add_argument('-p', '--plot', action='store_true')
-    parser.add_argument('-t', '--tolerance', type=float, dest='tolerance', default=1e-5)
-    parser.add_argument('-Nz', '--Nzeta_max', type=int, dest='nzeta_max', default=10)
-    parser.add_argument('-Nz0', '--Nzeta0', type=int, dest='nzeta0', default=3)
-    parser.add_argument('-Nt', '--Ntry', type=int, dest='ntry', default=4)
-    args = parser.parse_args()
+def fit_gaussian(parser=None, **kwargs):
+    """
+    :param parser: argparse.ArgumentParser
+    :param kwargs:
+        input_name: input file name, can be a list or str.
+        nzeta_max: maximum number of Nzeta, default 10
+        nzeta0: initial Nzeta, default 3
+        ntry: number of trying with random initial guest, default 4
+        tolerance: fitting error tolerance, default 0.00001
+    :return:
+    """
+    if parser is not None:
+        args = parser.parse_args()
+    else:
+        default = {
+            'tolerance': 1e-5,
+            'nzeta_max': 10,
+            'nzeta0': 3,
+            'ntry': 4,
+        }
+        default.update(kwargs)
+
+        # convert dict to a AttributeDict object
+        class AttributeDict(dict):
+            __getattr__ = dict.__getitem__
+            __setattr__ = dict.__setitem__
+            __delattr__ = dict.__delitem__
+        args = AttributeDict(default)
+        if type(args.input_name) == str:
+            args.input_name = [args.input_name]
 
     for input_name in args.input_name:
         name_list = input_name.split('.')  # format: '001.wf-s0.dat', element_number, shell, is_excited
@@ -296,6 +314,21 @@ def fit_gaussian(prog='fit_gaussians',
         with open(output, 'w') as f:
             for A, a in zip(Ae, ae):
                 f.write("{: .8E}  {: .8E}\n".format(a, A))  # order is alpha, co_effi
+
+
+# run this after begin.x
+def fit_gaussian_command(prog='fit-gaussians',
+                         description='Fit Fireball basis set to Gaussian-type basis set.'):
+    parser = argparse.ArgumentParser(
+        prog=prog,
+        description=description, )
+    parser.add_argument('input_name', nargs='+', help='Fireball wave function file.')
+    parser.add_argument('-p', '--plot', action='store_true')
+    parser.add_argument('-t', '--tolerance', type=float, dest='tolerance', default=1e-5)
+    parser.add_argument('-Nz', '--Nzeta_max', type=int, dest='nzeta_max', default=10)
+    parser.add_argument('-Nz0', '--Nzeta0', type=int, dest='nzeta0', default=3)
+    parser.add_argument('-Nt', '--Ntry', type=int, dest='ntry', default=4)
+    fit_gaussian(parser=parser)
 
 
 def read_gaussian(element_number, shell, is_excited, Fdata_path=None):

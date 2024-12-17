@@ -1,7 +1,7 @@
 import numpy as np
 import spglib
 from ase.dft.kpoints import kpoint_convert
-from thunder_ase.utils.basis_set import fit_gaussian
+from thunder_ase.utils.basis_set import fit_gaussian_command, fit_gaussian
 
 
 def atoms2spg(atoms):
