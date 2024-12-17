@@ -144,14 +144,15 @@ The following parameters are deprecated due to the usage of thunder-ase. In the 
 * v0.6: combination with Grimme's DFT-D4 correction.
 * v0.7: new calc.dynamics() function for easy running optimization and MD with socket.
 * v0.8: Use RMS as convergence criteria replace fmax and/or new optimizer for noisy force
+* v0.9: build tests framework for FIREBALL
 
 ** TODO **
 
-* vx.x: Fix the bug for ase version >= 3.23
-* vx.x: fix the phase issue for generating Multiwfn input
-* vx.x: build tests framework for FIREBALL; GitHub support  
-* vx.x: set ipi = 1 as default
-* vx.x: Fdata management. Maybe not in this repository.
-* vx.x: support more functionals, add keywords `xc`.
-* vx.x: interface with LODESTAR to do open quantum system simulation.
-* vx.x: support XingChen Liu's nano-reactor
+* Fix the bug for ase version >= 3.23
+* Fix the phase issue for generating Multiwfn input
+* GitHub support automatic test before merge branches  
+* ipi = 1 as default
+* Fdata management. Maybe not in this repository.
+* Support more functionals, add keywords `xc`.
+* Interface with LODESTAR to do open quantum system simulation.
+* Support XingChen Liu's nano-reactor
