@@ -1,10 +1,11 @@
 import shutil
 
 import pytest
-from ase import units
+from ase import units, Atoms
 from ase.build import molecule
 import os
 from thunder_ase.fireball import Fireball
+import subprocess
 
 
 class TestFireball:
@@ -90,5 +91,27 @@ class TestFireball:
         fireball.dynamics(dyn, steps=max_step)
 
     def test_mwfn(self):
-        pass
+        # Example from Preeya using Multiwfn calculate dipole of N2
+        atoms = Atoms('N2', [(-0.420, 1.215, 2.018), (-1.561, 1.215, 2.018)])
+        Fdata_path = '/home/ren/Fdata/Fdata-Horsfield-0.10-9SN.Hs4.10-9DN.Cs4.35p4.80.Ns3.95p4.40.Os3.35p3.80'
+        kwargs = {'iwriteout_cdcoeffs':1}
+        fireball = Fireball(command='fireball-ase.9.x', Fdata_path=Fdata_path, **kwargs)
+        atoms.calc = fireball
+        E0 = atoms.get_potential_energy()
+        atoms.calc.write_mwfn()
+        # Use Multiwfn to calc dipole
+        multiwfn_input = [
+            '300',
+            '5',
+            '0',
+            'q',
+        ]
+        input_name = 'dipole.inp'
+        with open(input_name, 'w') as f:
+            f.write('\n'.join(multiwfn_input))
 
+        os.system(f'Multiwfn 001.mwfn < {input_name} > mwfn.log')
+        command = ["awk", "/Magnitude of dipole moment/ {print $7,$8}", "mwfn.log"]
+        result = subprocess.run(command, capture_output=True, text=True)
+        assert result.returncode == 0
+        assert pytest.approx(float(result.stdout.split()[0]),abs=0.001)==0

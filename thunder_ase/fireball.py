@@ -628,12 +628,15 @@ class Fireball(GenerateFireballInput, Calculator):
 
         # atom information
         mwfn_dict['ncenter'] = MWFN_FORMAT['ncenter'].format(len(self.atoms))
+        # shift the positions to COM. For dipole calculation, Multiwfn need COM=(0,0,0)
+        atoms_shifted = self.atoms.copy()
+        atoms_shifted.set_center_of_mass(np.zeros(3))
         atoms_coord = [MWFN_FORMAT['atoms_coord'].format(idx + 1,
                                                          iatom.symbol,
                                                          iatom.number,
                                                          self.get_valence_charge(idx),
                                                          *iatom.position)
-                       for idx, iatom in enumerate(self.atoms)]
+                       for idx, iatom in enumerate(atoms_shifted)]
         mwfn_dict['atoms_coord'] = '\n'.join(atoms_coord)
 
         # cell info
