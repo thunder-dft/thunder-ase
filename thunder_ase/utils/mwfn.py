@@ -160,6 +160,14 @@ def read_cdcoeffs(filename):
                 coeff_orbital['coeff'] += [float(i) for i in content.split()]
 
         coeffs_kpoints.append(coeff_orbitals)
+
+    # Next part is to re-sign the orbitals with the sign of largest component from the first orbital
+    coeff0 = np.array(coeffs_kpoints[0][0]['coeff'])
+    coeff0_argmax = np.argmax(np.abs(coeff0))
+    coeff_sign = np.sign(coeff0[coeff0_argmax])
+    for ck in coeffs_kpoints:
+        for orbital in ck:
+            orbital['coeff'] = [coeff_sign * i for i in orbital['coeff']]
     return coeffs_kpoints
 
 
