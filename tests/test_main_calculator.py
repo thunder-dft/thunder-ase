@@ -114,4 +114,5 @@ class TestFireball:
         command = ["awk", "/Magnitude of dipole moment/ {print $7,$8}", "mwfn.log"]
         result = subprocess.run(command, capture_output=True, text=True)
         assert result.returncode == 0
+        print(f"Magnitude of dipole moment is {result.stdout.split()[0]} Debye.")
         assert pytest.approx(float(result.stdout.split()[0]),abs=0.001)==0
