@@ -2,7 +2,9 @@ import argparse
 import os.path
 
 import numpy as np
+from numpy.ma.core import around
 from scipy.optimize import minimize, basinhopping
+from scipy.integrate import quad  # gaussian quadrature.
 import matplotlib.pyplot as plt
 from thunder_ase.utils.shell_dict import SHELL_NUM, SHELL_NAME
 from ase.units import Bohr
@@ -96,16 +98,26 @@ def dnorm_c(a, shell=0):
 
 
 def gaussian(r, l=0, A=np.array([1.0]), a=np.array([0.1])):
-    # gaussian function
+    """
+    Gaussian function
+    :param r: radial distance
+    :param l: angular momentum
+    :param A: coefficients
+    :param a: exponential parameters
+    :return: 
+    """
     f = np.sum([Ai * (r ** l) * np.exp(-ai * (r ** 2)) * norm_c(ai, l)
                 for Ai, ai in zip(A, a)], axis=0)
     return f
 
+def sphere_rho(r, l, A, a):
+    # function for integral of fitted density over the whole space
+    f = 4 * np.pi * r**2 * (gaussian(r, l, A, a))**2
+    return f
 
 # loss function
 def loss_function(x, *args):
     """
-    TODO: use sum( (4 * pi * r**2 * (wf**2 - wf0**2))**2 ) as loss function as Multiwfn?
     :param x:
     :param args:
     :return:
@@ -117,7 +129,28 @@ def loss_function(x, *args):
     if r.shape != Y.shape:
         raise ValueError('Shapes for args[1] and args[2] are not equal!')
 
+
+    # Fitting type: Multiwfn manual 3.300.2 as reference
+    #rho0 = Y ** 2
+    #rho = gaussian(r, l, A, alpha) ** 2
+    # type 1: absolute error of density: sum((rho - rho0)**2)
+    #loss = np.sum((rho - rho0) ** 2)
+
+    # type 2: relative error of density: sum(((rho - rho0)/rho)**2)
+    #loss = np.sum(((rho - rho0) / rho) ** 2)
+
+    # type 3: error of density radial distribution function: sum((4 * pi * r**2 * (rho - rho0))**2)
+    #loss = np.sum((4 * np.pi * r**2 * (rho - rho0))**2)
+
+    # type 4: mean error of wave function: mean((wf-wf0)**2)  # not in multiwfn, my version
     loss = np.mean((gaussian(r, l, A, alpha) - Y) ** 2)
+
+    # "Commonly, fitting type (3) is preferred over others, because the density fitted in this way can
+    # reproduce actual density over the entire range. Fitted density corresponding to fitting type (1) can
+    # only well represent the region very close to nucleus, since electron density in this region is
+    # significantly larger than other regions. The density fitted by type (3) usually represents valence and
+    # tail regions well, but has a poor description in the region very close to nucleus."
+
     return loss
 
 
@@ -126,13 +159,22 @@ def loss_jac(x, *args):
     alpha = 10 ** x[0:len_x]
     A = np.asarray(x[len_x:])
     l, r, Y = args
+    rho0 = Y ** 2
+    rho = gaussian(r, l, A, alpha) ** 2
+
     if r.shape != Y.shape:
         raise ValueError('Shapes for args[1] and args[2] are not equal!')
     d_alpha = np.asarray([Ai * (r ** l) * np.exp(-ai * (r ** 2)) * ai * np.log(10) *
                           (dnorm_c(ai, l) - r ** 2 * norm_c(ai, l)) for Ai, ai in zip(A, alpha)])
     d_A = np.asarray([(r ** l) * np.exp(-ai * (r ** 2)) * norm_c(ai, l) for ai in alpha])
     der = np.concatenate([d_alpha, d_A])
+    # type 3
+    #k = 64 * np.pi**2 * r**4
+    #jac = np.sum(k * (rho - rho0) * gaussian(r, l, A, alpha) * der, axis=1)
+
+    # type 4
     jac = 2 * np.mean((gaussian(r, l, A, alpha) - Y) * der, axis=1)
+
     return jac
 
 
@@ -145,6 +187,16 @@ def fit_wf(data, x0, l=0, bnds=None):
     alpha = res.x[0:nz]  # exponential parameters,
     Ae = res.x[nz:]  # coefficients
     error = res.fun
+
+    rho0 = Y ** 2
+    dr = R.max() / len(R)
+    Nele = np.sum(4 * np.pi * R**2 * rho0 * dr)
+
+    # "Integral of fitted density over the whole space may deviate from actual number of electrons
+    # (Nelec), clearly this breaks physical meaning of fitted density and makes it useless in many scenarios.
+    # In order to solve this problem, the fitted coefficients should be scaled by a factor"
+    Ae = Ae * Nele / quad(sphere_rho, a=0, b=10, args=(l, Ae, alpha))[0]
+
     return [Ae, alpha, error]
 
 
@@ -163,7 +215,11 @@ def fit_wf_from_random(data, l=0, tol=1e-5, Nzeta0=3, Nzeta_max=10, Niter=3, bnd
     R, Y = np.asarray(data)
     error = np.inf
     result_res = None
-
+    rho0 = Y ** 2
+    dr = R.max() / len(R)
+    Nele = np.sum(4 * np.pi * R ** 2 * rho0 * dr)
+    print(f"Number of electrons: {Nele} ~ {around(Nele, 0)}")
+    Nele = around(Nele, 0)
     print("Fitting parameters: shell = {}, Nzeta0 = {}, Nzeta_max = {}, Ntry = {}, tol = {}"
           .format(l, Nzeta0, Nzeta_max, Niter, tol))
 
@@ -196,6 +252,11 @@ def fit_wf_from_random(data, l=0, tol=1e-5, Nzeta0=3, Nzeta_max=10, Niter=3, bnd
                     Ae = result_res.x[nz:]  # coefficients
                     print("Success!: Fitting error {} meet the tolerance {} for {} gaussians."
                           .format(error, tol, nz))
+
+                    # "Integral of fitted density over the whole space may deviate from actual number of electrons
+                    # (Nelec), clearly this breaks physical meaning of fitted density and makes it useless in many scenarios.
+                    # In order to solve this problem, the fitted coefficients should be scaled by a factor"
+                    Ae = Ae * Nele / quad(sphere_rho, a=0, b=10, args=(l, Ae, alpha))[0]
                     return [Ae, alpha, error]
         print("Fitting error {} didn't meet the tolerance {} for {} gaussians after {} try."
               .format(error, tol, nz, Niter))
@@ -204,7 +265,7 @@ def fit_wf_from_random(data, l=0, tol=1e-5, Nzeta0=3, Nzeta_max=10, Niter=3, bnd
     Ae = result_res.x[Nzeta_max:]  # coefficients
     print("Warning: Fitting error {} didn't meet the tolerance {} for {} gaussians."
           .format(error, tol, Nzeta_max))
-
+    Ae = Ae * Nele / quad(sphere_rho, a=0, b=10, args=(l, Ae, alpha))[0]
     return [Ae, alpha, error]
 
 
@@ -244,6 +305,33 @@ def expand_data(wf_data):
     return np.asarray([new_r, new_y])
 
 
+def angular_coeff(shell):
+    coeff_angular = Bohr ** 1.5
+    # normalize wf_data for different l: sqrt((2*l+1) / (4*pi))
+    if shell == 0:
+        coeff_angular = coeff_angular * np.sqrt(1.0 / (4.0 * np.pi))
+    elif shell == 1:
+        coeff_angular = coeff_angular * np.sqrt(3.0 / (4.0 * np.pi))
+    elif shell == 2:
+        coeff_angular = coeff_angular * np.sqrt(5.0 / (4.0 * np.pi))
+    else:
+        raise NotImplementedError
+    return coeff_angular
+
+
+def get_full_wf(input_name):
+    name_list = input_name.split('.')  # format: '001.wf-s0.dat', element_number, shell, is_excited
+    shell_name, is_excited = name_list[1][-2:]
+    shell = SHELL_NUM[shell_name]
+    if not os.path.exists(input_name):
+        print("{} doesn't exist!".format(input_name))
+        raise FileNotFoundError
+    wf_data = read_wf(input_name).T
+    wf_data[1] = wf_data[1] * angular_coeff(shell)
+    wf_data = expand_data(wf_data)
+    return wf_data
+
+
 # run this after begin.x
 def fit_gaussian(parser=None, **kwargs):
     """
@@ -277,28 +365,11 @@ def fit_gaussian(parser=None, **kwargs):
             args.input_name = [args.input_name]
 
     for input_name in args.input_name:
+        wf_data = get_full_wf(input_name)
         name_list = input_name.split('.')  # format: '001.wf-s0.dat', element_number, shell, is_excited
         element_number = int(name_list[0])
         shell_name, is_excited = name_list[1][-2:]
         shell = SHELL_NUM[shell_name]
-        if not os.path.exists(input_name):
-            print("{} doesn't exist!".format(input_name))
-            raise FileNotFoundError
-        wf_data = read_wf(input_name).T
-
-        coeff_angular = Bohr**1.5
-        # normalize wf_data for different l: sqrt((2*l+1) / (4*pi))
-        if shell == 0:
-            coeff_angular = coeff_angular * np.sqrt(1.0 / (4.0 * np.pi))
-        elif shell == 1:
-            coeff_angular = coeff_angular * np.sqrt(3.0 / (4.0 * np.pi))
-        elif shell == 2:
-            coeff_angular = coeff_angular * np.sqrt(5.0 / (4.0 * np.pi))
-        else:
-            raise NotImplementedError
-
-        wf_data[1] = wf_data[1] * coeff_angular
-        wf_data = expand_data(wf_data)
         # fitting from random
         Ae, ae, error = fit_wf_from_random(data=wf_data, l=shell,
                                            tol=args.tolerance,
