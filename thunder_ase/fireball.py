@@ -5,6 +5,7 @@ from typing import Dict, Any
 from random import randint
 import ase
 from ase.calculators.socketio import SocketIOCalculator
+from ase.optimize.optimize import DEFAULT_MAX_STEPS
 from ase.units import Hartree
 import numpy as np
 from ase.calculators.calculator import Calculator, CalculationFailed, all_changes, PropertyNotImplementedError
@@ -38,7 +39,7 @@ options_params = {
     'iconstraint_l': {'type': (int,), 'name': 'iconstraint_L', 'default': 1},
     'iconstraint_ke': {'type': (int,), 'name': 'iconstraint_KE', 'default': 1},
     'ifix_neighbors': {'type': (int,), 'name': 'ifix_neighbors', 'default': 0},
-    'ifix_charges': {'type': (int,), 'name': 'ifix_CHARGES', 'default': 1},
+    'ifix_charges': {'type': (int,), 'name': 'ifix_CHARGES', 'default': 0},
     'max_scf_iterations_set': {'type': (int,), 'name': 'max_scf_iterations_set', 'default': 50},
     'scf_tolerance_set': {'type': (int, float), 'name': 'scf_tolerance_set', 'default': 0.000001},
     'beta_set': {'type': (int, float), 'name': 'beta_set', 'default': 0.08},  # mix factor
@@ -356,6 +357,7 @@ class GenerateFireballInput:
 
         if read_atoms:
             return sname_list
+        return None
 
     def read_kpts(self, input_file=None):
         with open(input_file, 'r') as f:
@@ -716,7 +718,7 @@ class Fireball(GenerateFireballInput, Calculator):
     def dynamics(self, dyn, **kwargs):
         if self.options_params.get('ipi') == 1:
             atoms = dyn.atoms
-            kwargs.setdefault('steps', self.options_params.get('nstepf', dyn.max_steps))
+            kwargs.setdefault('steps', self.options_params.get('nstepf', DEFAULT_MAX_STEPS))
             # set FIREBALL nstepf option, unless it will stop after 1 step.
             self.options_params['nstepf'] = kwargs['steps'] + 1
             with SocketIOCalculator(self, log=None, unixsocket=self.socket) as calc:

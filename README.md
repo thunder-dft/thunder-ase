@@ -15,7 +15,7 @@ The interface of ASE for FIREBALL.
 
 #### Requirements
 
-* ase (version <= 3.22.1, there is a bug for later version.)
+* ase
 * spglib
 * dftd4 and dftd4-python for DFT-D4 (optional)
 
@@ -87,18 +87,18 @@ More info:
 #### Advanced Parameters
 
 * `iconstraint_rcm`: Whether shifts molecule to center of mass (COM) before the simulation. Default is 1 (True).
-* `ifix_neighbors`: Fix the neighbor list of the system to initial structure. Default is  0 (False).
-* `ifix_charges`: Fix the charges of the system to initial structure. Default is  0 (False). This is useful sometimes for very unreasonable initial structures.
+* `ifix_neighbors`: Fix the neighbor list of the system to initial structure. Default is 0 (False).
+* `ifix_charges`: Fix the charges of the system to initial structure. Default is 0 (False). This is useful sometimes for very unreasonable initial structures.
 * `iwriteout_me_sandh`: Write out overlap (S) and Hamiltonian (H) matrix. Default is 0 (False).
 * `iwriteout_cdcoeffs`: Write out orbital coefficients. Default is 0 (False).
 * `iwriteout_density`: Write out density matrix. Default is  0 (False).
-* `iwriteout_energies`: Write out all energy terms. Default is  0 (False).
+* `iwriteout_energies`: Write out all energy terms. Default is 0 (False).
 * `iwriteout_populations`: Measure the localization by the entropic quantity W. Default is  0 (False). W is the number of accessible atoms for the given electronic energy and which describes the spatial extent of the electronic state. See more in Refs. H. Wang and J. P. Lewis, J. Phys.: Condens. Matter 18, 421–434 (2005) and  H. Wang and J. P. Lewis, J. Phys.: Condens. Matter 17, L209–L213 (2005).
-* `iwriteout_forces`: Write out all force terms. Default is  0 (False).
-* `iwriteout_neighbors`: Write out all neighbors. Default is  0 (False).
-* `iwriteout_abs`: Write out absorption spectra. Default is  0 (False).
-* `iwriteout_ewf`: Write out wave functions. Default is  0 (False).
-* `iwriteout_dos`: Write out  density of states. Default is  0 (False).
+* `iwriteout_forces`: Write out all force terms. Default is 0 (False).
+* `iwriteout_neighbors`: Write out all neighbors. Default is 0 (False).
+* `iwriteout_abs`: Write out absorption spectra. Default is 0 (False).
+* `iwriteout_ewf`: Write out wave functions. Default is 0 (False).
+* `iwriteout_dos`: Write out density of states. Default is 0 (False).
 * `ipi`: open I-PI socket. Default is 0.
 * `inet`: socket protocol, 0: unixsocket, 1: port. Default is 0(unixsocket). inet=1 is under-developing. 
 * `host`: name for unixsocket. Default is 'thunder-ase-xxxx', xxxx is random string.
@@ -145,11 +145,11 @@ The following parameters are deprecated due to the usage of thunder-ase. In the 
 * v0.7: new calc.dynamics() function for easy running optimization and MD with socket.
 * v0.8: Use RMS as convergence criteria replace fmax and/or new optimizer for noisy force
 * v0.9: build tests framework for FIREBALL
+  * v0.9.4: Fix the phase issue for generating Multiwfn input
+  * v0.9.5: Fix the bug for ase version >= 3.23
 
 ** TODO **
 
-* Fix the bug for ase version >= 3.23
-* Fix the phase issue for generating Multiwfn input
 * GitHub support automatic test before merge branches  
 * ipi = 1 as default
 * Fdata management. Maybe not in this repository.

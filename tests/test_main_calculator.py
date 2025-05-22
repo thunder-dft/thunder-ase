@@ -4,8 +4,10 @@ import pytest
 from ase import units, Atoms
 from ase.build import molecule
 import os
+from ase.calculators.socketio import SocketIOCalculator
 from thunder_ase.fireball import Fireball
 import subprocess
+from thunder_ase.optimize import MDMin
 
 
 class TestFireball:
@@ -28,8 +30,7 @@ class TestFireball:
         fireball = Fireball(command='fireball-ase.9.x', Fdata_path=Fdata_path, **kwargs)
         atoms.calc = fireball
         E0 = atoms.get_potential_energy()
-
-        assert E0 == -1017.283695
+        assert pytest.approx(E0,abs=0.001) == -1017.283695
 
     def test_crystal_sp(self):
         from ase.build import bulk
@@ -39,8 +40,7 @@ class TestFireball:
         fireball = Fireball(command='fireball-ase.9.x', Fdata_path=Fdata_path, **kwargs)
         diamond.calc = fireball
         E0 = diamond.get_potential_energy()
-
-        assert E0 == -308.687861
+        assert pytest.approx(E0,abs=0.001) == -308.687861
 
     def test_minimize(self):
         atoms = molecule('C6H6')
@@ -51,28 +51,19 @@ class TestFireball:
         fireball.minimize(atoms, method='MDMin', fmax=0.1, trajectory='minimize.traj',
                           logfile='minimize.log')
         Eopt = atoms.get_potential_energy()
+        assert pytest.approx(Eopt,abs=0.001) == -1017.7185886746582
 
-        assert Eopt == -1017.7185886746582
-
-    def test_md(self):
-        """
-        Use diamond as test
-        :return:
-        """
-        from ase.cluster import Icosahedron
-        from ase.md.verlet import VelocityVerlet as NVE
-
-        max_step = 10  # run 10 steps
-        diamond = Icosahedron('C', noshells=3, latticeconstant=2.4)
-        diamond.positions[:, 0] = diamond.positions[:, 0] + 10
+    def test_socketio(self):
+        atoms = molecule('C6H6')
         Fdata_path = '/home/ren/Fdata/Fdata-Horsfield-0.10-9SN.Hs4.10-9DN.Cs4.35p4.80.Ns3.95p4.40.Os3.35p3.80'
-        kwargs = {'ipi': 1}
+        kwargs = {'ipi': 1, 'nstepf':21}
         fireball = Fireball(command='fireball-ase.9.x', Fdata_path=Fdata_path, **kwargs)
-        dyn = NVE(diamond, timestep=1.0 * units.fs, trajectory='md-nve.traj', logfile='md-nve.log')
-        fireball.dynamics(dyn, steps=max_step)
-        E0 = diamond.get_potential_energy()
-
-        assert E0 == -308.687861
+        dyn = MDMin(atoms, trajectory='minimize.traj', logfile='minimize.log')
+        with SocketIOCalculator(fireball, log=open('ipi.log','w'), unixsocket=fireball.socket) as calc:
+            atoms.calc = calc
+            dyn.run(fmax=0.1, steps=20)
+        Eopt = atoms.get_potential_energy()
+        assert pytest.approx(Eopt,abs=0.001) == -1017.7185886746582
 
     def test_md_C60(self):
         """

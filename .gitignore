@@ -141,3 +141,4 @@ cython_debug/
 Fdata/
 Fdata.inp
 data/
+tests/intel_env
